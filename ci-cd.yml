@@ -1,0 +1,84 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main # Triggers on pushes to main branch
+  pull_request:
+    branches:
+      - main # Triggers on pull requests targeting main
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Check out the repository
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Step 2: Set up Node.js
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16 # Use Node.js 16 (LTS)
+
+    # Step 3: Install dependencies
+    - name: Install dependencies
+      run: npm install
+
+    # Step 4: Prepare SQLite database
+    - name: Prepare SQLite database
+      run: |
+        touch database.sqlite
+        npx sequelize-cli db:migrate
+
+    # Step 5: Run linting
+    - name: Run ESLint
+      run: npx eslint . --ext .js
+
+    # Step 6: Run tests and generate coverage report
+    - name: Run tests and generate coverage
+      run: npm run coverage
+
+    # Step 7: Upload coverage report
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: coverage/
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: ci
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Heroku CLI
+      run: curl https://cli-assets.heroku.com/install.sh | sh
+
+    - name: Deploy to Heroku
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+      run: |
+        heroku git:remote -a Byte-Sized Bits
+        git push heroku main
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Deploy to production (manual approval)
+      if: ${{ github.event_name == 'workflow_dispatch' }} # Ensures production deployment requires manual trigger
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+      run: |
+        heroku git:remote -a byte-sized-bits
+        git push heroku main
