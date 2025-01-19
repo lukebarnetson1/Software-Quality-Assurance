@@ -4,7 +4,7 @@
 # Run tests and linting before committing
 if git diff --cached --name-only | grep -E '\.js$'; then
   echo "Running tests and linting..."
-  npm test && npx eslint . --ext .js
+  npm test && npx eslint .
   if [ $? -ne 0 ]; then
     echo "❌ Commit aborted: Fix tests or linting issues."
     exit 1
