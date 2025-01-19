@@ -18,31 +18,40 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # Step 2: Set up Node.js
+    # Step 2: Cache Node.js modules
+    - name: Cache Node.js modules
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm # Cache location
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    # Step 3: Set up Node.js
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
         node-version: 16 # Use Node.js 16 (LTS)
 
-    # Step 3: Install dependencies
+    # Step 4: Install dependencies
     - name: Install dependencies
       run: npm install
 
-    # Step 4: Prepare SQLite database
+    # Step 5: Prepare SQLite database
     - name: Prepare SQLite database
       run: |
         touch database.sqlite
         npx sequelize-cli db:migrate
 
-    # Step 5: Run linting
+    # Step 6: Run linting
     - name: Run ESLint
       run: npx eslint . --ext .js
 
-    # Step 6: Run tests and generate coverage report
+    # Step 7: Run tests and generate coverage report
     - name: Run tests and generate coverage
       run: npm run coverage
 
-    # Step 7: Upload coverage report
+    # Step 8: Upload coverage report
     - name: Upload coverage report
       uses: actions/upload-artifact@v3
       with:
