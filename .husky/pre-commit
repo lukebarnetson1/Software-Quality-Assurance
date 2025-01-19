@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run tests and linting before committing
+if git diff --cached --name-only | grep -E '\.js$'; then
+  echo "Running tests and linting..."
+  npm test && npx eslint . --ext .js
+  if [ $? -ne 0 ]; then
+    echo "❌ Commit aborted: Fix tests or linting issues."
+    exit 1
+  fi
+else
+  echo "No JavaScript files changed. Skipping tests and linting."
+fi
