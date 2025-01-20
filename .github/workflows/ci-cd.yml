@@ -45,7 +45,7 @@ jobs:
 
     # Step 6: Run linting
     - name: Run ESLint
-      run: npx eslint . --ext .js
+      run: npx eslint .
 
     # Step 7: Run tests and generate coverage report
     - name: Run tests and generate coverage
