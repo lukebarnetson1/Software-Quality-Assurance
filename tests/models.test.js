@@ -17,7 +17,7 @@ describe("BlogPost Model", () => {
     await expect(
       BlogPost.create({
         content: "Missing title and author",
-      })
+      }),
     ).rejects.toThrow();
   });
 });
