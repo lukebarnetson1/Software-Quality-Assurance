@@ -31,7 +31,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: 18 # Use Node.js 16 (LTS)
+        node-version: 18
 
     # Step 4: Install dependencies
     - name: Install dependencies
