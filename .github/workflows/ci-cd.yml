@@ -14,49 +14,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Check out the repository
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      # Step 1: Check out the repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    # Step 2: Cache Node.js modules
-    - name: Cache Node.js modules
-      uses: actions/cache@v3
-      with:
-        path: ~/.npm # Cache location
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+      # Step 2: Cache Node.js modules
+      - name: Cache Node.js modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm # Cache location
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
-    # Step 3: Set up Node.js
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 18
+      # Step 3: Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
 
-    # Step 4: Install dependencies
-    - name: Install dependencies
-      run: npm install
+      # Step 4: Install dependencies
+      - name: Install dependencies
+        run: npm install
 
-    # Step 5: Prepare SQLite database
-    - name: Prepare SQLite database
-      run: |
-        touch database.sqlite
-        npx sequelize-cli db:migrate --config=config/config.json
+      # Step 5: Prepare SQLite database
+      - name: Prepare SQLite database
+        run: |
+          touch database.sqlite
+          npx sequelize-cli db:migrate --config=config/config.json
 
-    # Step 6: Run linting
-    - name: Run ESLint
-      run: npx eslint .
+      # Step 6: Run linting
+      - name: Run ESLint
+        run: npx eslint .
 
-    # Step 7: Run tests and generate coverage report
-    - name: Run tests and generate coverage
-      run: npm run coverage
+      # Step 7: Run tests and generate coverage report
+      - name: Run tests and generate coverage
+        run: npm run coverage
 
-    # Step 8: Upload coverage report
-    - name: Upload coverage report
-      uses: actions/upload-artifact@v3
-      with:
-        name: coverage-report
-        path: coverage/
+      # Step 8: Upload coverage report
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage/
 
   # deploy-staging:
   #   runs-on: ubuntu-latest
