@@ -37,7 +37,10 @@ router.get('/edit/:id', async (req, res) => {
 router.post('/edit/:id', async (req, res) => {
   const post = await BlogPost.findByPk(req.params.id);
   if (post) {
-    await post.update(req.body);
+    const { title, content } = req.body;
+    if (title && content) {
+      await post.update({ title, content });
+    }
     res.redirect(`/post/${post.id}`);
   } else {
     res.status(404).send('Post not found');
