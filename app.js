@@ -21,7 +21,7 @@ app.use("/", blogRoutes);
 // Export the app without starting the server
 module.exports = app;
 
-// Only start the server if the file is run directly
+// Only start the server if this file is run directly
 if (require.main === module) {
   sequelize.sync().then(() => {
     // istanbul ignore next
