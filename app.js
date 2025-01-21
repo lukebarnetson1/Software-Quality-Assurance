@@ -1,31 +1,32 @@
-const express = require('express');
-const path = require('path');
-const { sequelize } = require('./models');
-const blogRoutes = require('./routes/blog');
+const express = require("express");
+const path = require("path");
+const { sequelize } = require("./models");
+const blogRoutes = require("./routes/blog");
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 // View engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'pug');
+app.set("views", path.join(__dirname, "views"));
+app.set("view engine", "pug");
 
 // Middleware
-// Parse URL-encoded bodies (as sent by HTML forms)
-// This middleware is needed to handle form submissions in our blog application
 app.use(express.urlencoded({ extended: true }));
-
-// Serve static files from the 'public' directory
-// This middleware allows us to serve our CSS file and any other static assets
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, "public")));
+app.use(express.json());
 
 // Routes
-app.use('/', blogRoutes);
+app.use("/", blogRoutes);
 
-// Sync database and start server
-sequelize.sync().then(() => {
-  app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+// Export the app without starting the server
+module.exports = app;
+
+// Only start the server if the file is run directly
+if (require.main === module) {
+  sequelize.sync().then(() => {
+    // istanbul ignore next
+    app.listen(port, () => {
+      console.log(`Server is running on http://localhost:${port}`);
+    });
   });
-});
-
+}
