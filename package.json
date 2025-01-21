@@ -6,9 +6,9 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "coverage": "jest --coverage",
-    "prepare": "husky install",
-    "test": "echo \"No tests defined\" && exit 0"
+    "test": "jest --runInBand --detectOpenHandles",
+    "coverage": "jest --coverage --runInBand --detectOpenHandles",
+    "prepare": "husky install"
   },
   "dependencies": {
     "express": "^4.17.1",
