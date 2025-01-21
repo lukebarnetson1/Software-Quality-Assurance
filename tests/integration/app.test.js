@@ -1,4 +1,4 @@
-require("../setup");
+require("../testSetup");
 const request = require("supertest");
 const app = require("../../app");
 
