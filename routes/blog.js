@@ -2,15 +2,18 @@ const express = require("express");
 const router = express.Router();
 const { BlogPost } = require("../models");
 
+// Get all blog posts and render the index page
 router.get("/", async (req, res) => {
   const posts = await BlogPost.findAll();
   res.render("index", { title: "Blog Posts", posts });
 });
 
+// Render the create post form
 router.get("/create", (req, res) => {
   res.render("create", { title: "Create Post" });
 });
 
+// Create a new blog post
 router.post("/create", async (req, res) => {
   const { title, content, author } = req.body;
 
@@ -19,7 +22,6 @@ router.post("/create", async (req, res) => {
     return res.status(400).send("All fields are required");
   }
 
-  // Create the blog post if input is valid
   try {
     await BlogPost.create({ title, content, author });
     res.redirect("/");
@@ -28,6 +30,7 @@ router.post("/create", async (req, res) => {
   }
 });
 
+// Render a single blog post
 router.get("/post/:id", async (req, res) => {
   const post = await BlogPost.findByPk(req.params.id);
   if (post) {
@@ -37,6 +40,7 @@ router.get("/post/:id", async (req, res) => {
   }
 });
 
+// Render the edit form for a specific blog post
 router.get("/edit/:id", async (req, res) => {
   const post = await BlogPost.findByPk(req.params.id);
   if (post) {
@@ -46,6 +50,7 @@ router.get("/edit/:id", async (req, res) => {
   }
 });
 
+// Update a specific blog post
 router.post("/edit/:id", async (req, res) => {
   const post = await BlogPost.findByPk(req.params.id);
   if (post) {
@@ -59,6 +64,7 @@ router.post("/edit/:id", async (req, res) => {
   }
 });
 
+// Delete a specific blog post
 router.post("/delete/:id", async (req, res) => {
   const post = await BlogPost.findByPk(req.params.id);
   if (post) {
@@ -69,11 +75,11 @@ router.post("/delete/:id", async (req, res) => {
   }
 });
 
+// Get blog post statistics
 router.get("/stats", async (req, res) => {
   const posts = await BlogPost.findAll();
   const lengths = posts.map((post) => post.content.length);
 
-  // Handle the empty array case to avoid division by zero
   if (lengths.length === 0) {
     return res.render("stats", {
       title: "Post Statistics",
@@ -85,7 +91,6 @@ router.get("/stats", async (req, res) => {
     });
   }
 
-  // Sort a copy of the lengths array to calculate the median
   const sortedLengths = [...lengths].sort((a, b) => a - b);
   const median =
     lengths.length % 2 === 0
@@ -93,19 +98,17 @@ router.get("/stats", async (req, res) => {
           sortedLengths[lengths.length / 2]) /
         2
       : sortedLengths[Math.floor(lengths.length / 2)];
-
   const total_length = lengths.reduce((a, b) => a + b, 0);
   const average_length = total_length / lengths.length;
 
-  const stats = {
+  res.render("stats", {
+    title: "Post Statistics",
     average_length: Math.round(average_length),
     median_length: Math.round(median),
     max_length: Math.max(...lengths),
     min_length: Math.min(...lengths),
     total_length: total_length,
-  };
-
-  res.render("stats", { title: "Post Statistics", ...stats });
+  });
 });
 
 module.exports = router;
