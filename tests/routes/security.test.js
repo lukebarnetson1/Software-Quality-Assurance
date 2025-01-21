@@ -41,7 +41,7 @@ describe("Input Validation and Sanitisation", () => {
     );
   });
 
-  test("POST /create should sanitise malicious content", async () => {
+  test("POST /create should sanitise malicious input in content", async () => {
     const maliciousContent = "<script>alert('Hacked!')</script>";
     const response = await request(server).post("/create").send({
       title: "Test Title",
@@ -55,6 +55,24 @@ describe("Input Validation and Sanitisation", () => {
     expect(post).not.toBeNull();
     expect(post.content).not.toContain("<script>");
     expect(post.content).not.toContain("alert");
+  });
+
+  test("POST /create should sanitise malicious input in author", async () => {
+    const maliciousAuthor = "<script>alert('Hacked!')</script>";
+    const response = await request(server).post("/create").send({
+      title: "Valid Title",
+      content: "Valid Content",
+      author: maliciousAuthor,
+    });
+
+    expect(response.status).toBe(302);
+
+    const post = await BlogPost.findOne({
+      where: { content: "Valid Content" },
+    });
+    expect(post).not.toBeNull();
+    expect(post.author).not.toContain("<script>");
+    expect(post.author).not.toContain("alert");
   });
 
   test("POST /edit/:id should reject invalid input", async () => {
@@ -84,7 +102,7 @@ describe("Input Validation and Sanitisation", () => {
     );
   });
 
-  test("POST /edit/:id should sanitise malicious input", async () => {
+  test("POST /edit/:id should sanitise malicious input in title", async () => {
     const post = await BlogPost.create({
       title: "Original Post",
       content: "Original Content",
@@ -93,16 +111,16 @@ describe("Input Validation and Sanitisation", () => {
 
     const maliciousInput = "<script>alert('Hacked!')</script>";
     const response = await request(server).post(`/edit/${post.id}`).send({
-      title: "Updated Title",
-      content: maliciousInput,
+      title: maliciousInput,
+      content: "Updated Content",
     });
 
     expect(response.status).toBe(302);
 
     const updatedPost = await BlogPost.findByPk(post.id);
-    expect(updatedPost.title).toBe("Updated Title");
-    expect(updatedPost.content).not.toContain("<script>");
-    expect(updatedPost.content).not.toContain("alert");
+    expect(updatedPost.title).not.toContain("<script>");
+    expect(updatedPost.title).not.toContain("alert");
+    expect(updatedPost.content).toBe("Updated Content"); // Ensure content is updated properly
   });
 
   test("POST /create should enforce length limits on fields", async () => {
