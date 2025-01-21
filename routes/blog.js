@@ -1,6 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const { BlogPost } = require("../models");
+const {
+  validateCreatePost,
+  validateEditPost,
+  handleValidationErrors,
+} = require("../middlewares/validation");
 
 // Get all blog posts and render the index page
 router.get("/", async (req, res) => {
@@ -14,21 +19,21 @@ router.get("/create", (req, res) => {
 });
 
 // Create a new blog post
-router.post("/create", async (req, res) => {
-  const { title, content, author } = req.body;
+router.post(
+  "/create",
+  validateCreatePost,
+  handleValidationErrors,
+  async (req, res) => {
+    const { title, content, author } = req.body;
 
-  // Validate input
-  if (!title || !content || !author) {
-    return res.status(400).send("All fields are required");
-  }
-
-  try {
-    await BlogPost.create({ title, content, author });
-    res.redirect("/");
-  } catch {
-    res.status(500).send("Internal Server Error");
-  }
-});
+    try {
+      await BlogPost.create({ title, content, author });
+      res.redirect("/");
+    } catch {
+      res.status(500).send("Internal Server Error");
+    }
+  },
+);
 
 // Render a single blog post
 router.get("/post/:id", async (req, res) => {
@@ -51,18 +56,21 @@ router.get("/edit/:id", async (req, res) => {
 });
 
 // Update a specific blog post
-router.post("/edit/:id", async (req, res) => {
-  const post = await BlogPost.findByPk(req.params.id);
-  if (post) {
-    const { title, content } = req.body;
-    if (title && content) {
+router.post(
+  "/edit/:id",
+  validateEditPost,
+  handleValidationErrors,
+  async (req, res) => {
+    const post = await BlogPost.findByPk(req.params.id);
+    if (post) {
+      const { title, content } = req.body;
       await post.update({ title, content });
+      res.redirect(`/post/${post.id}`);
+    } else {
+      res.status(404).send("Post not found");
     }
-    res.redirect(`/post/${post.id}`);
-  } else {
-    res.status(404).send("Post not found");
-  }
-});
+  },
+);
 
 // Delete a specific blog post
 router.post("/delete/:id", async (req, res) => {
