@@ -1,4 +1,4 @@
-const { BlogPost } = require("../models");
+const { BlogPost } = require("../../models");
 
 describe("BlogPost Model", () => {
   test("should create a valid blog post", async () => {
