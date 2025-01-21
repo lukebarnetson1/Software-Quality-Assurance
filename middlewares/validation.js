@@ -1,14 +1,15 @@
 const { body, param, validationResult } = require("express-validator");
 const sanitizeHtml = require("sanitize-html");
 
-// Middleware to validate and sanitize input
+// Middleware to validate and sanitise input
 const validateCreatePost = [
   body("title")
     .trim()
     .notEmpty()
     .withMessage("Title is required")
     .isLength({ max: 100 })
-    .withMessage("Title must be less than 100 characters"),
+    .withMessage("Title must be less than 100 characters")
+    .customSanitizer((value) => sanitizeHtml(value)),
   body("content")
     .trim()
     .notEmpty()
@@ -19,7 +20,8 @@ const validateCreatePost = [
     .notEmpty()
     .withMessage("Author is required")
     .isLength({ max: 100 })
-    .withMessage("Author name must be less than 100 characters"),
+    .withMessage("Author name must be less than 100 characters")
+    .customSanitizer((value) => sanitizeHtml(value)),
 ];
 
 const validateEditPost = [
@@ -30,7 +32,8 @@ const validateEditPost = [
     .notEmpty()
     .withMessage("Title must not be empty")
     .isLength({ max: 100 })
-    .withMessage("Title must be less than 100 characters"),
+    .withMessage("Title must be less than 100 characters")
+    .customSanitizer((value) => sanitizeHtml(value)),
   body("content")
     .optional()
     .trim()
