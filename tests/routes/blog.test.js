@@ -1,3 +1,4 @@
+require("../setup");
 const request = require("supertest");
 const app = require("../../app");
 const { BlogPost } = require("../../models");
@@ -105,6 +106,23 @@ describe("Blog API - CRUD Operations", () => {
     const deletedPost = await BlogPost.findByPk(post.id);
     expect(deletedPost).toBeNull();
   });
+
+  test("POST /edit/:id should not update if title or content is missing", async () => {
+    const post = await BlogPost.create({
+      title: "Old Title",
+      content: "Old content",
+      author: "Author4",
+    });
+    // Missing content
+    const response = await request(server).post(`/edit/${post.id}`).send({
+      title: "Updated Title",
+      content: "",
+    });
+    expect(response.status).toBe(302); // Redirect still occurs
+    const unchangedPost = await BlogPost.findByPk(post.id);
+    expect(unchangedPost.title).toBe("Old Title");
+    expect(unchangedPost.content).toBe("Old content");
+  });
 });
 
 describe("Blog API - Statistics Route", () => {
@@ -141,6 +159,32 @@ describe("Blog API - Statistics Route", () => {
     expect(response.text).toContain("Maximum: 0 characters");
     expect(response.text).toContain("Minimum: 0 characters");
   });
+
+  test("GET /stats should calculate median correctly for even number of posts", async () => {
+    await BlogPost.create({
+      title: "Post 1",
+      content: "123",
+      author: "Author1",
+    });
+    await BlogPost.create({
+      title: "Post 2",
+      content: "4567",
+      author: "Author2",
+    });
+    await BlogPost.create({
+      title: "Post 3",
+      content: "89",
+      author: "Author3",
+    });
+    await BlogPost.create({
+      title: "Post 4",
+      content: "101112",
+      author: "Author4",
+    });
+    const response = await request(server).get("/stats");
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("Median: 4 characters"); // (3+5)/2 = 4
+  });
 });
 
 describe("Blog API - Error Cases", () => {
@@ -159,6 +203,20 @@ describe("Blog API - Error Cases", () => {
     expect(response.text).toContain("Post not found");
   });
 
+  test("should return 500 if BlogPost.create throws an error", async () => {
+    jest.spyOn(BlogPost, "create").mockImplementationOnce(() => {
+      throw new Error("Database error");
+    });
+    const response = await request(server).post("/create").send({
+      title: "Test Post",
+      content: "Content",
+      author: "Author",
+    });
+    expect(response.status).toBe(500);
+    expect(response.text).toContain("Internal Server Error");
+    BlogPost.create.mockRestore();
+  });
+
   test("POST /create should return 400 for invalid data", async () => {
     const response = await request(server)
       .post("/create")
@@ -166,5 +224,51 @@ describe("Blog API - Error Cases", () => {
 
     expect(response.status).toBe(400);
     expect(response.text).toContain("All fields are required");
+  });
+
+  test("should return 404 if post does not exist", async () => {
+    const response = await request(server).post("/delete/9999");
+    expect(response.status).toBe(404);
+    expect(response.text).toContain("Post not found");
+  });
+
+  test("should return 200 and render the post if it exists", async () => {
+    const post = await BlogPost.create({
+      title: "Sample Post",
+      content: "Sample Content",
+      author: "Author",
+    });
+
+    const response = await request(server).get(`/post/${post.id}`);
+    expect(response.status).toBe(200);
+    expect(response.text).toContain(post.title);
+    expect(response.text).toContain(post.content);
+    expect(response.text).toContain(post.author);
+  });
+
+  test("should return 404 if the post does not exist", async () => {
+    const response = await request(server).get("/post/9999"); // Non-existent ID
+    expect(response.status).toBe(404);
+    expect(response.text).toContain("Post not found");
+  });
+
+  test("should return 200 and render the edit view if the post exists", async () => {
+    const post = await BlogPost.create({
+      title: "Editable Post",
+      content: "Editable Content",
+      author: "Author",
+    });
+
+    const response = await request(server).get(`/edit/${post.id}`);
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("Edit Post");
+    expect(response.text).toContain(post.title);
+    expect(response.text).toContain(post.content);
+  });
+
+  test("should return 404 if the post does not exist", async () => {
+    const response = await request(server).get("/edit/9999"); // Non-existent ID
+    expect(response.status).toBe(404);
+    expect(response.text).toContain("Post not found");
   });
 });
