@@ -1,9 +1,9 @@
 const { body, param, validationResult } = require("express-validator");
-const sanitizeHtml = require("sanitize-html");
+const sanitiseHtml = require("sanitize-html");
 
 // Reusable sanitisation function
-const sanitizeInput = (input) => {
-  return sanitizeHtml(input, {
+const sanitiseInput = (input) => {
+  return sanitiseHtml(input, {
     allowedTags: [], // Disallow all HTML tags
     allowedAttributes: {}, // Disallow all attributes
     disallowedTagsMode: "discard",
@@ -19,19 +19,19 @@ const validateCreatePost = [
     .withMessage("Title is required")
     .isLength({ max: 100 })
     .withMessage("Title must be less than 100 characters")
-    .customSanitizer((value) => sanitizeInput(value)),
+    .customSanitizer((value) => sanitiseInput(value)),
   body("content")
     .trim()
     .notEmpty()
     .withMessage("Content is required")
-    .customSanitizer((value) => sanitizeInput(value)),
+    .customSanitizer((value) => sanitiseInput(value)),
   body("author")
     .trim()
     .notEmpty()
     .withMessage("Author is required")
     .isLength({ max: 100 })
     .withMessage("Author name must be less than 100 characters")
-    .customSanitizer((value) => sanitizeInput(value)),
+    .customSanitizer((value) => sanitiseInput(value)),
 ];
 
 const validateEditPost = [
@@ -43,13 +43,13 @@ const validateEditPost = [
     .withMessage("Title must not be empty")
     .isLength({ max: 100 })
     .withMessage("Title must be less than 100 characters")
-    .customSanitizer((value) => sanitizeInput(value)),
+    .customSanitizer((value) => sanitiseInput(value)),
   body("content")
     .optional()
     .trim()
     .notEmpty()
     .withMessage("Content must not be empty")
-    .customSanitizer((value) => sanitizeInput(value)),
+    .customSanitizer((value) => sanitiseInput(value)),
 ];
 
 // Middleware to handle validation errors
