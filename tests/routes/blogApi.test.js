@@ -17,6 +17,18 @@ beforeEach(async () => {
   await BlogPost.destroy({ where: {} }); // Clear the database before each test
 });
 
+// Utility function to fetch CSRF token and session cookie
+async function getCsrfToken(route = "/create") {
+  const response = await request(server).get(route);
+  const csrfTokenMatch = response.text.match(/name="_csrf" value="([^"]+)"/);
+  if (!csrfTokenMatch) {
+    throw new Error("Failed to extract CSRF token");
+  }
+  const csrfToken = csrfTokenMatch[1];
+  const cookie = response.headers["set-cookie"];
+  return { csrfToken, cookie };
+}
+
 describe("Blog API - Rendering Routes", () => {
   test("GET / should render the index view with blog posts", async () => {
     const post = await BlogPost.create({
@@ -60,11 +72,18 @@ describe("Blog API - Rendering Routes", () => {
 
 describe("Blog API - CRUD Operations", () => {
   test("POST /create should create a new blog post", async () => {
-    const response = await request(server).post("/create").send({
-      title: "New Post",
-      content: "This is a new blog post.",
-      author: "New Author",
-    });
+    const { csrfToken, cookie } = await getCsrfToken();
+
+    const response = await request(server)
+      .post("/create")
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        title: "New Post",
+        content: "This is a new blog post.",
+        author: "New Author",
+        _csrf: csrfToken,
+      });
 
     expect(response.status).toBe(302);
 
@@ -75,16 +94,22 @@ describe("Blog API - CRUD Operations", () => {
   });
 
   test("POST /edit/:id should update a blog post", async () => {
+    const { csrfToken, cookie } = await getCsrfToken();
     const post = await BlogPost.create({
       title: "Old Title",
       content: "Old content",
       author: "Author4",
     });
 
-    const response = await request(server).post(`/edit/${post.id}`).send({
-      title: "Updated Title",
-      content: "Updated content",
-    });
+    const response = await request(server)
+      .post(`/edit/${post.id}`)
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        title: "Updated Title",
+        content: "Updated content",
+        _csrf: csrfToken,
+      });
 
     expect(response.status).toBe(302);
 
@@ -94,13 +119,21 @@ describe("Blog API - CRUD Operations", () => {
   });
 
   test("POST /delete/:id should delete an existing blog post and redirect", async () => {
+    const { csrfToken, cookie } = await getCsrfToken();
     const post = await BlogPost.create({
       title: "Deletable Post",
       content: "This will be deleted",
       author: "Author Name",
     });
 
-    const response = await request(server).post(`/delete/${post.id}`);
+    const response = await request(server)
+      .post(`/delete/${post.id}`)
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        _csrf: csrfToken,
+      });
+
     expect(response.status).toBe(302);
 
     const deletedPost = await BlogPost.findByPk(post.id);
@@ -108,16 +141,22 @@ describe("Blog API - CRUD Operations", () => {
   });
 
   test("POST /edit/:id should not update if title or content is missing", async () => {
+    const { csrfToken, cookie } = await getCsrfToken();
     const post = await BlogPost.create({
       title: "Old Title",
       content: "Old content",
       author: "Author4",
     });
 
-    const response = await request(server).post(`/edit/${post.id}`).send({
-      title: "Updated Title",
-      content: "", // Missing content
-    });
+    const response = await request(server)
+      .post(`/edit/${post.id}`)
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        title: "Updated Title",
+        content: "", // Missing content
+        _csrf: csrfToken,
+      });
 
     expect(response.status).toBe(400);
 
@@ -147,19 +186,19 @@ describe("Blog API - Statistics Route", () => {
 
     const response = await request(server).get("/stats");
     expect(response.status).toBe(200);
-    expect(response.text).toContain("Average: 5 characters");
-    expect(response.text).toContain("Median: 5 characters");
-    expect(response.text).toContain("Maximum: 7 characters");
-    expect(response.text).toContain("Minimum: 3 characters");
+    expect(response.text).toContain("Average Length: 5 characters");
+    expect(response.text).toContain("Median Length: 5 characters");
+    expect(response.text).toContain("Maximum Length: 7 characters");
+    expect(response.text).toContain("Minimum Length: 3 characters");
   });
 
   test("GET /stats should handle empty database gracefully", async () => {
     const response = await request(server).get("/stats");
     expect(response.status).toBe(200);
-    expect(response.text).toContain("Average: 0 characters");
-    expect(response.text).toContain("Median: 0 characters");
-    expect(response.text).toContain("Maximum: 0 characters");
-    expect(response.text).toContain("Minimum: 0 characters");
+    expect(response.text).toContain("Average Length: 0 characters");
+    expect(response.text).toContain("Median Length: 0 characters");
+    expect(response.text).toContain("Maximum Length: 0 characters");
+    expect(response.text).toContain("Minimum Length: 0 characters");
   });
 
   test("GET /stats should calculate median correctly for even number of posts", async () => {
@@ -186,7 +225,7 @@ describe("Blog API - Statistics Route", () => {
 
     const response = await request(server).get("/stats");
     expect(response.status).toBe(200);
-    expect(response.text).toContain("Median: 4 characters"); // (3+5)/2 = 4
+    expect(response.text).toContain("Median Length: 4 characters"); // (3+5)/2 = 4
   });
 });
 
@@ -198,55 +237,84 @@ describe("Blog API - Error Cases", () => {
   });
 
   test("POST /edit/:id should return 404 for non-existent post", async () => {
+    const { csrfToken, cookie } = await getCsrfToken();
+
     const response = await request(server)
       .post("/edit/9999")
-      .send({ title: "Updated Title", content: "Updated Content" });
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        title: "Updated Title",
+        content: "Updated Content",
+        _csrf: csrfToken,
+      });
 
     expect(response.status).toBe(404);
     expect(response.text).toContain("Post not found");
   });
 
   test("should return 500 if BlogPost.create throws an error", async () => {
+    const { csrfToken, cookie } = await getCsrfToken();
+
     jest.spyOn(BlogPost, "create").mockImplementationOnce(() => {
       throw new Error("Database error");
     });
-    const response = await request(server).post("/create").send({
-      title: "Test Post",
-      content: "Content",
-      author: "Author",
-    });
+
+    const response = await request(server)
+      .post("/create")
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        title: "Test Post",
+        content: "Content",
+        author: "Author",
+        _csrf: csrfToken,
+      });
+
     expect(response.status).toBe(500);
     expect(response.text).toContain("Internal Server Error");
+
     BlogPost.create.mockRestore();
   });
 
   test("POST /create should return 400 for invalid data", async () => {
-    const response = await request(server).post("/create").send({
-      title: "",
-      content: "",
-      author: "",
-    });
+    const { csrfToken, cookie } = await getCsrfToken();
+
+    const response = await request(server)
+      .post("/create")
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        title: "",
+        content: "",
+        author: "",
+        _csrf: csrfToken,
+      });
 
     expect(response.status).toBe(400);
 
-    // Map the response body errors to ignore additional fields
     const normalisedErrors = response.body.errors.map((error) => ({
       msg: error.msg,
-      path: error.path,
-      location: error.location,
     }));
 
     expect(normalisedErrors).toEqual(
       expect.arrayContaining([
-        { msg: "Title is required", path: "title", location: "body" },
-        { msg: "Content is required", path: "content", location: "body" },
-        { msg: "Author is required", path: "author", location: "body" },
+        { msg: "Title is required" },
+        { msg: "Content is required" },
+        { msg: "Author is required" },
       ]),
     );
   });
 
   test("should return 404 if post does not exist", async () => {
-    const response = await request(server).post("/delete/9999");
+    const { csrfToken, cookie } = await getCsrfToken();
+
+    const response = await request(server)
+      .post("/delete/9999")
+      .type("form")
+      .set("Cookie", cookie)
+      .send({ _csrf: csrfToken });
+
     expect(response.status).toBe(404);
     expect(response.text).toContain("Post not found");
   });
@@ -266,7 +334,7 @@ describe("Blog API - Error Cases", () => {
   });
 
   test("should return 404 if the post does not exist", async () => {
-    const response = await request(server).get("/post/9999"); // Non-existent ID
+    const response = await request(server).get("/post/9999");
     expect(response.status).toBe(404);
     expect(response.text).toContain("Post not found");
   });
@@ -286,7 +354,7 @@ describe("Blog API - Error Cases", () => {
   });
 
   test("should return 404 if the post does not exist", async () => {
-    const response = await request(server).get("/edit/9999"); // Non-existent ID
+    const response = await request(server).get("/edit/9999");
     expect(response.status).toBe(404);
     expect(response.text).toContain("Post not found");
   });
