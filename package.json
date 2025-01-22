@@ -11,6 +11,7 @@
     "prepare": "husky install"
   },
   "dependencies": {
+    "csurf": "^1.10.0",
     "express": "^4.17.1",
     "express-validator": "^7.2.1",
     "pug": "^3.0.2",
