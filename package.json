@@ -12,7 +12,9 @@
   },
   "dependencies": {
     "express": "^4.17.1",
+    "express-validator": "^7.2.1",
     "pug": "^3.0.2",
+    "sanitize-html": "^2.14.0",
     "sequelize": "^6.6.5",
     "sqlite3": "^5.0.2"
   },

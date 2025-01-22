@@ -113,12 +113,14 @@ describe("Blog API - CRUD Operations", () => {
       content: "Old content",
       author: "Author4",
     });
-    // Missing content
+
     const response = await request(server).post(`/edit/${post.id}`).send({
       title: "Updated Title",
-      content: "",
+      content: "", // Missing content
     });
-    expect(response.status).toBe(302); // Redirect still occurs
+
+    expect(response.status).toBe(400);
+
     const unchangedPost = await BlogPost.findByPk(post.id);
     expect(unchangedPost.title).toBe("Old Title");
     expect(unchangedPost.content).toBe("Old content");
@@ -181,6 +183,7 @@ describe("Blog API - Statistics Route", () => {
       content: "101112",
       author: "Author4",
     });
+
     const response = await request(server).get("/stats");
     expect(response.status).toBe(200);
     expect(response.text).toContain("Median: 4 characters"); // (3+5)/2 = 4
@@ -218,12 +221,28 @@ describe("Blog API - Error Cases", () => {
   });
 
   test("POST /create should return 400 for invalid data", async () => {
-    const response = await request(server)
-      .post("/create")
-      .send({ title: "", content: "", author: "" });
+    const response = await request(server).post("/create").send({
+      title: "",
+      content: "",
+      author: "",
+    });
 
     expect(response.status).toBe(400);
-    expect(response.text).toContain("All fields are required");
+
+    // Map the response body errors to ignore additional fields
+    const normalisedErrors = response.body.errors.map((error) => ({
+      msg: error.msg,
+      path: error.path,
+      location: error.location,
+    }));
+
+    expect(normalisedErrors).toEqual(
+      expect.arrayContaining([
+        { msg: "Title is required", path: "title", location: "body" },
+        { msg: "Content is required", path: "content", location: "body" },
+        { msg: "Author is required", path: "author", location: "body" },
+      ]),
+    );
   });
 
   test("should return 404 if post does not exist", async () => {
