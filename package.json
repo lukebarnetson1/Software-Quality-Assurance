@@ -11,6 +11,7 @@
     "prepare": "husky install"
   },
   "dependencies": {
+    "cookie-parser": "^1.4.7",
     "csurf": "^1.10.0",
     "express": "^4.17.1",
     "express-validator": "^7.2.1",
