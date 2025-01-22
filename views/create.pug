@@ -1,9 +1,16 @@
 extends layout
 
 block content
-  form(action="/create", method="POST")
-    input(type="text", name="title", placeholder="Title", required)
-    input(type="text", name="author", placeholder="Author", required)
-    textarea(name="content", placeholder="Content", required)
-    button(type="submit") Create
-
+  h2 Create a New Post
+  form(method="POST", action="/create")
+    input(type="hidden", name="_csrf", value=csrfToken)
+    label(for="title") Title:
+    input(type="text", name="title", placeholder="Enter title", required)
+    br
+    label(for="author") Author:
+    input(type="text", name="author", placeholder="Enter author name", required)
+    br
+    label(for="content") Content:
+    textarea(name="content", placeholder="Enter content", required)
+    br
+    button(type="submit") Create Post
