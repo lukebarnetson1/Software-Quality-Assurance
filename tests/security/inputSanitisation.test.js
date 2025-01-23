@@ -1,41 +1,13 @@
-require("../testSetup");
 const request = require("supertest");
 const app = require("../../app");
 const { BlogPost } = require("../../models");
-
-let server;
-
-beforeAll(async () => {
-  server = app.listen(); // Create a server instance for testing
-});
-
-afterAll(async () => {
-  server.close(); // Close the server after tests
-});
-
-beforeEach(async () => {
-  await BlogPost.destroy({ where: {} }); // Clear the database before each test
-});
-
-async function getCsrfToken(route = "/create") {
-  const response = await request(server).get(route);
-
-  // Extract CSRF token from form
-  const csrfTokenMatch = response.text.match(/name="_csrf" value="([^"]+)"/);
-  if (!csrfTokenMatch) {
-    throw new Error("Failed to extract CSRF token");
-  }
-
-  const csrfToken = csrfTokenMatch[1];
-  const cookie = response.headers["set-cookie"];
-  return { csrfToken, cookie };
-}
+const { getCsrfToken } = require("../setup/testSetup");
 
 describe("Input Validation and Sanitisation", () => {
   test("POST /create should reject missing required fields", async () => {
     const { csrfToken, cookie } = await getCsrfToken();
 
-    const response = await request(server)
+    const response = await request(app)
       .post("/create")
       .type("form")
       .set("Cookie", cookie)
@@ -66,7 +38,7 @@ describe("Input Validation and Sanitisation", () => {
     const { csrfToken, cookie } = await getCsrfToken();
 
     const maliciousContent = "<script>alert('Hacked!')</script>";
-    const response = await request(server)
+    const response = await request(app)
       .post("/create")
       .type("form")
       .set("Cookie", cookie)
@@ -89,7 +61,7 @@ describe("Input Validation and Sanitisation", () => {
     const { csrfToken, cookie } = await getCsrfToken();
 
     const maliciousAuthor = "<script>alert('Hacked!')</script>";
-    const response = await request(server)
+    const response = await request(app)
       .post("/create")
       .type("form")
       .set("Cookie", cookie)
@@ -118,7 +90,7 @@ describe("Input Validation and Sanitisation", () => {
       author: "Author",
     });
 
-    const response = await request(server)
+    const response = await request(app)
       .post(`/edit/${post.id}`)
       .type("form")
       .set("Cookie", cookie)
@@ -152,7 +124,7 @@ describe("Input Validation and Sanitisation", () => {
     });
 
     const maliciousInput = "<script>alert('Hacked!')</script>";
-    const response = await request(server)
+    const response = await request(app)
       .post(`/edit/${post.id}`)
       .type("form")
       .set("Cookie", cookie)
@@ -173,7 +145,7 @@ describe("Input Validation and Sanitisation", () => {
   test("POST /create should enforce length limits on fields", async () => {
     const { csrfToken, cookie } = await getCsrfToken();
 
-    const response = await request(server)
+    const response = await request(app)
       .post("/create")
       .type("form")
       .set("Cookie", cookie)

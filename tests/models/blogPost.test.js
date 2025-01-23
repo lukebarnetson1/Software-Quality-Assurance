@@ -1,4 +1,4 @@
-require("../testSetup");
+require("../setup/testSetup");
 const { BlogPost } = require("../../models");
 
 describe("BlogPost Model", () => {
