@@ -1,29 +1,22 @@
-require("../testSetup");
 const request = require("supertest");
 const app = require("../../app");
 const { BlogPost } = require("../../models");
-
-let server;
-
-beforeAll(async () => {
-  server = app.listen(); // Create a server instance for testing
-});
-
-afterAll(async () => {
-  server.close(); // Close the server after tests
-});
-
-beforeEach(async () => {
-  await BlogPost.destroy({ where: {} }); // Clear the database before each test
-});
+const { getCsrfToken } = require("../setup/testSetup");
 
 describe("Input Validation and Sanitisation", () => {
   test("POST /create should reject missing required fields", async () => {
-    const response = await request(server).post("/create").send({
-      title: "",
-      content: "",
-      author: "",
-    });
+    const { csrfToken, cookie } = await getCsrfToken();
+
+    const response = await request(app)
+      .post("/create")
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        title: "",
+        content: "",
+        author: "",
+        _csrf: csrfToken,
+      });
 
     expect(response.status).toBe(400);
 
@@ -42,12 +35,19 @@ describe("Input Validation and Sanitisation", () => {
   });
 
   test("POST /create should sanitise malicious input in content", async () => {
+    const { csrfToken, cookie } = await getCsrfToken();
+
     const maliciousContent = "<script>alert('Hacked!')</script>";
-    const response = await request(server).post("/create").send({
-      title: "Test Title",
-      content: maliciousContent,
-      author: "Test Author",
-    });
+    const response = await request(app)
+      .post("/create")
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        title: "Test Title",
+        content: maliciousContent,
+        author: "Test Author",
+        _csrf: csrfToken,
+      });
 
     expect(response.status).toBe(302);
 
@@ -58,12 +58,19 @@ describe("Input Validation and Sanitisation", () => {
   });
 
   test("POST /create should sanitise malicious input in author", async () => {
+    const { csrfToken, cookie } = await getCsrfToken();
+
     const maliciousAuthor = "<script>alert('Hacked!')</script>";
-    const response = await request(server).post("/create").send({
-      title: "Valid Title",
-      content: "Valid Content",
-      author: maliciousAuthor,
-    });
+    const response = await request(app)
+      .post("/create")
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        title: "Valid Title",
+        content: "Valid Content",
+        author: maliciousAuthor,
+        _csrf: csrfToken,
+      });
 
     expect(response.status).toBe(302);
 
@@ -76,16 +83,22 @@ describe("Input Validation and Sanitisation", () => {
   });
 
   test("POST /edit/:id should reject invalid input", async () => {
+    const { csrfToken, cookie } = await getCsrfToken();
     const post = await BlogPost.create({
       title: "Initial Title",
       content: "Initial Content",
       author: "Author",
     });
 
-    const response = await request(server).post(`/edit/${post.id}`).send({
-      title: "",
-      content: "",
-    });
+    const response = await request(app)
+      .post(`/edit/${post.id}`)
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        title: "",
+        content: "",
+        _csrf: csrfToken,
+      });
 
     expect(response.status).toBe(400);
 
@@ -103,6 +116,7 @@ describe("Input Validation and Sanitisation", () => {
   });
 
   test("POST /edit/:id should sanitise malicious input in title", async () => {
+    const { csrfToken, cookie } = await getCsrfToken();
     const post = await BlogPost.create({
       title: "Original Post",
       content: "Original Content",
@@ -110,26 +124,36 @@ describe("Input Validation and Sanitisation", () => {
     });
 
     const maliciousInput = "<script>alert('Hacked!')</script>";
-    const response = await request(server).post(`/edit/${post.id}`).send({
-      title: maliciousInput,
-      content: "Updated Content",
-    });
+    const response = await request(app)
+      .post(`/edit/${post.id}`)
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        title: maliciousInput,
+        content: "Updated Content",
+        _csrf: csrfToken,
+      });
 
     expect(response.status).toBe(302);
 
     const updatedPost = await BlogPost.findByPk(post.id);
     expect(updatedPost.title).not.toContain("<script>");
     expect(updatedPost.title).not.toContain("alert");
-    expect(updatedPost.content).toBe("Updated Content"); // Ensure content is updated properly
+    expect(updatedPost.content).toBe("Updated Content");
   });
 
   test("POST /create should enforce length limits on fields", async () => {
-    const response = await request(server)
+    const { csrfToken, cookie } = await getCsrfToken();
+
+    const response = await request(app)
       .post("/create")
+      .type("form")
+      .set("Cookie", cookie)
       .send({
-        title: "a".repeat(101), // Exceeds 100-character limit
+        title: "a".repeat(101),
         content: "Valid Content",
-        author: "b".repeat(101), // Exceeds 100-character limit
+        author: "b".repeat(101),
+        _csrf: csrfToken,
       });
 
     expect(response.status).toBe(400);

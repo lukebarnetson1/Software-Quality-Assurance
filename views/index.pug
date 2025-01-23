@@ -1,6 +1,7 @@
 extends layout
 
 block content
+  h2 Posts
   if posts.length
     ul
       each post in posts
@@ -8,4 +9,3 @@ block content
           a(href=`/post/${post.id}`) #{post.title} by #{post.author} (#{post.created_at.toLocaleDateString()})
   else
     p No posts available
-

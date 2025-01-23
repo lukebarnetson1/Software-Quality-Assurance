@@ -1,10 +1,17 @@
-require("../testSetup");
 const request = require("supertest");
 const app = require("../../app");
+const { getCsrfToken } = require("../setup/testSetup");
 
 describe("App Initialisation", () => {
   test("should use URL-encoded middleware and return 404 for unknown POST route", async () => {
-    const response = await request(app).post("/").send("key=value");
+    const { csrfToken, cookie } = await getCsrfToken();
+
+    const response = await request(app)
+      .post("/")
+      .type("form")
+      .set("Cookie", cookie)
+      .send({ key: "value", _csrf: csrfToken });
+
     expect(response.status).toBe(404);
   });
 
@@ -14,10 +21,14 @@ describe("App Initialisation", () => {
   });
 
   test("should use JSON middleware and return 404 for unknown POST route", async () => {
+    const { csrfToken, cookie } = await getCsrfToken();
+
     const response = await request(app)
       .post("/")
-      .send({ key: "value" })
-      .set("Content-Type", "application/json");
+      .set("Content-Type", "application/json")
+      .set("Cookie", cookie)
+      .send({ key: "value", _csrf: csrfToken });
+
     expect(response.status).toBe(404);
   });
 
