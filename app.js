@@ -23,17 +23,19 @@ app.use(express.json());
 // Use cookie-parser for CSRF cookie support
 app.use(cookieParser());
 
+app.use(apiLimiter);
+
 // Set up CSRF protection with tokens stored in cookies
 app.use(csrf({ cookie: true }));
-
-// Apply rate limiting middleware globally
-app.use(apiLimiter);
 
 // Make the CSRF token available in all views via res.locals
 app.use((req, res, next) => {
   res.locals.csrfToken = req.csrfToken();
   next();
 });
+
+// Apply rate limiting middleware after CSRF setup
+// app.use(apiLimiter);
 
 // Routes
 app.use("/", blogRoutes);
