@@ -4,6 +4,7 @@ const csrf = require("csurf");
 const cookieParser = require("cookie-parser");
 const { sequelize } = require("./models");
 const blogRoutes = require("./routes/blog");
+const { apiLimiter } = require("./middlewares/rateLimit");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -24,6 +25,9 @@ app.use(cookieParser());
 
 // Set up CSRF protection with tokens stored in cookies
 app.use(csrf({ cookie: true }));
+
+// Apply rate limiting middleware globally
+app.use(apiLimiter);
 
 // Make the CSRF token available in all views via res.locals
 app.use((req, res, next) => {
