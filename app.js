@@ -2,7 +2,7 @@ const express = require("express");
 const path = require("path");
 const csrf = require("csurf");
 const cookieParser = require("cookie-parser");
-const { sequelize } = require("./models");
+const { initialiseModels } = require("./models");
 const blogRoutes = require("./routes/blog");
 
 const app = express();
@@ -47,7 +47,7 @@ module.exports = app;
 
 // Only start the server if this file is run directly
 if (require.main === module) {
-  sequelize.sync().then(() => {
+  initialiseModels().then(() => {
     app.listen(port, () => {
       console.log(`Server running on http://localhost:${port}`);
     });
