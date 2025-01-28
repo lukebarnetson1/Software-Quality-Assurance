@@ -1,4 +1,4 @@
-const { body, param, validationResult } = require("express-validator");
+const { body, validationResult } = require("express-validator");
 const sanitiseHtml = require("sanitize-html");
 
 // Reusable sanitisation function
@@ -11,8 +11,8 @@ const sanitiseInput = (input) => {
   });
 };
 
-// Middleware to validate and sanitise input
-const validateCreatePost = [
+// Validation rules for creating/editing blog posts
+const validateBlogPost = [
   body("title")
     .trim()
     .notEmpty()
@@ -34,22 +34,24 @@ const validateCreatePost = [
     .customSanitizer((value) => sanitiseInput(value)),
 ];
 
-const validateEditPost = [
-  param("id").isInt().withMessage("Post ID must be an integer"),
-  body("title")
-    .optional()
-    .trim()
-    .notEmpty()
-    .withMessage("Title must not be empty")
-    .isLength({ max: 100 })
-    .withMessage("Title must be less than 100 characters")
+// Validation rules for sign-up
+const validateSignUp = [
+  body("email")
+    .isEmail()
+    .withMessage("Must be a valid email address")
     .customSanitizer((value) => sanitiseInput(value)),
-  body("content")
-    .optional()
-    .trim()
-    .notEmpty()
-    .withMessage("Content must not be empty")
+  body("password")
+    .isLength({ min: 8 })
+    .withMessage("Password must be at least 8 characters long"),
+];
+
+// Validation rules for login
+const validateLogin = [
+  body("email")
+    .isEmail()
+    .withMessage("Must be a valid email address")
     .customSanitizer((value) => sanitiseInput(value)),
+  body("password").notEmpty().withMessage("Password is required"),
 ];
 
 // Middleware to handle validation errors
@@ -62,7 +64,8 @@ const handleValidationErrors = (req, res, next) => {
 };
 
 module.exports = {
-  validateCreatePost,
-  validateEditPost,
+  validateBlogPost,
+  validateSignUp,
+  validateLogin,
   handleValidationErrors,
 };
