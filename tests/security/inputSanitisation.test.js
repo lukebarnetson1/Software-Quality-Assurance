@@ -1,26 +1,29 @@
 const request = require("supertest");
 const app = require("../../app");
 const { BlogPost } = require("../../models");
-const { getCsrfToken } = require("../setup/testSetup");
+const { getAuthenticatedCsrfToken, loginUser } = require("../setup/testSetup");
 
 describe("Input Validation and Sanitisation", () => {
-  test("POST /create should reject missing required fields", async () => {
-    const { csrfToken, cookie } = await getCsrfToken();
+  let agent;
+  let csrfToken;
 
-    const response = await request(app)
-      .post("/create")
-      .type("form")
-      .set("Cookie", cookie)
-      .send({
-        title: "",
-        content: "",
-        author: "",
-        _csrf: csrfToken,
-      });
+  beforeEach(async () => {
+    agent = request.agent(app);
+    await loginUser(agent); // Log in the test user
+    csrfToken = await getAuthenticatedCsrfToken(agent, "/create"); // Fetch CSRF token from a protected route
+  });
+
+  test("POST /create should reject missing required fields", async () => {
+    const response = await agent.post("/create").type("form").send({
+      title: "",
+      content: "",
+      author: "",
+      _csrf: csrfToken,
+    });
 
     expect(response.status).toBe(400);
 
-    // Normalise errors
+    // Assuming your validation middleware sends back errors in the response body
     const normalisedErrors = response.body.errors.map((error) => ({
       msg: error.msg,
     }));
@@ -35,19 +38,13 @@ describe("Input Validation and Sanitisation", () => {
   });
 
   test("POST /create should sanitise malicious input in content", async () => {
-    const { csrfToken, cookie } = await getCsrfToken();
-
     const maliciousContent = "<script>alert('Hacked!')</script>";
-    const response = await request(app)
-      .post("/create")
-      .type("form")
-      .set("Cookie", cookie)
-      .send({
-        title: "Test Title",
-        content: maliciousContent,
-        author: "Test Author",
-        _csrf: csrfToken,
-      });
+    const response = await agent.post("/create").type("form").send({
+      title: "Test Title",
+      content: maliciousContent,
+      author: "Test Author",
+      _csrf: csrfToken,
+    });
 
     expect(response.status).toBe(302);
 
@@ -58,19 +55,13 @@ describe("Input Validation and Sanitisation", () => {
   });
 
   test("POST /create should sanitise malicious input in author", async () => {
-    const { csrfToken, cookie } = await getCsrfToken();
-
     const maliciousAuthor = "<script>alert('Hacked!')</script>";
-    const response = await request(app)
-      .post("/create")
-      .type("form")
-      .set("Cookie", cookie)
-      .send({
-        title: "Valid Title",
-        content: "Valid Content",
-        author: maliciousAuthor,
-        _csrf: csrfToken,
-      });
+    const response = await agent.post("/create").type("form").send({
+      title: "Valid Title",
+      content: "Valid Content",
+      author: maliciousAuthor,
+      _csrf: csrfToken,
+    });
 
     expect(response.status).toBe(302);
 
@@ -83,40 +74,40 @@ describe("Input Validation and Sanitisation", () => {
   });
 
   test("POST /edit/:id should reject invalid input", async () => {
-    const { csrfToken, cookie } = await getCsrfToken();
     const post = await BlogPost.create({
       title: "Initial Title",
       content: "Initial Content",
       author: "Author",
     });
 
-    const response = await request(app)
-      .post(`/edit/${post.id}`)
-      .type("form")
-      .set("Cookie", cookie)
-      .send({
-        title: "",
-        content: "",
-        _csrf: csrfToken,
-      });
+    const editCsrfToken = await getAuthenticatedCsrfToken(
+      agent,
+      `/edit/${post.id}`,
+    );
+
+    const response = await agent.post(`/edit/${post.id}`).type("form").send({
+      title: "",
+      content: "",
+      author: "Author", // Include 'author' to satisfy validation
+      _csrf: editCsrfToken,
+    });
 
     expect(response.status).toBe(400);
 
-    // Normalise errors
+    // Assuming your validation middleware sends back errors in the response body
     const normalisedErrors = response.body.errors.map((error) => ({
       msg: error.msg,
     }));
 
     expect(normalisedErrors).toEqual(
       expect.arrayContaining([
-        { msg: "Title must not be empty" },
-        { msg: "Content must not be empty" },
+        { msg: "Title is required" },
+        { msg: "Content is required" },
       ]),
     );
   });
 
   test("POST /edit/:id should sanitise malicious input in title", async () => {
-    const { csrfToken, cookie } = await getCsrfToken();
     const post = await BlogPost.create({
       title: "Original Post",
       content: "Original Content",
@@ -124,15 +115,17 @@ describe("Input Validation and Sanitisation", () => {
     });
 
     const maliciousInput = "<script>alert('Hacked!')</script>";
-    const response = await request(app)
-      .post(`/edit/${post.id}`)
-      .type("form")
-      .set("Cookie", cookie)
-      .send({
-        title: maliciousInput,
-        content: "Updated Content",
-        _csrf: csrfToken,
-      });
+    const editCsrfToken = await getAuthenticatedCsrfToken(
+      agent,
+      `/edit/${post.id}`,
+    );
+
+    const response = await agent.post(`/edit/${post.id}`).type("form").send({
+      title: maliciousInput,
+      content: "Updated Content",
+      author: "Author", // Include 'author' to satisfy validation
+      _csrf: editCsrfToken,
+    });
 
     expect(response.status).toBe(302);
 
@@ -143,12 +136,9 @@ describe("Input Validation and Sanitisation", () => {
   });
 
   test("POST /create should enforce length limits on fields", async () => {
-    const { csrfToken, cookie } = await getCsrfToken();
-
-    const response = await request(app)
+    const response = await agent
       .post("/create")
       .type("form")
-      .set("Cookie", cookie)
       .send({
         title: "a".repeat(101),
         content: "Valid Content",
@@ -158,7 +148,7 @@ describe("Input Validation and Sanitisation", () => {
 
     expect(response.status).toBe(400);
 
-    // Normalise errors
+    // Assuming your validation middleware sends back errors in the response body
     const normalisedErrors = response.body.errors.map((error) => ({
       msg: error.msg,
     }));
