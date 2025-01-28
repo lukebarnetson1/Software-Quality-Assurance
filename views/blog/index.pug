@@ -8,4 +8,5 @@ block content
         li
           a(href=`/post/${post.id}`) #{post.title} by #{post.author} (#{post.created_at.toLocaleDateString()})
   else
-    p No posts available
+    p No posts available.
+    a(href="/create") Create your first post.

@@ -11,8 +11,11 @@ block content
     input(type="password", name="password", required)
     br
     label(for="rememberMe")
-      input(type="checkbox", name="rememberMe") Remember Me
+      input(type="checkbox", name="rememberMe")
+      | Remember Me
     br
     button(type="submit") Log In
   p
     a(href="/auth/forgot") Forgot Password?
+  p Don't have an account?
+  button(onclick="window.location.href='/auth/signup'") Sign Up
