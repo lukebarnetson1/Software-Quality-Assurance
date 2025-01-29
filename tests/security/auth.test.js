@@ -1,9 +1,9 @@
 const request = require("supertest");
 const app = require("../../app");
 const {
-  getCsrfToken,
-  loginUser,
   getAuthenticatedCsrfToken,
+  loginUser,
+  getCsrfToken,
 } = require("../setup/testSetup");
 const { User } = require("../../models");
 
@@ -28,12 +28,29 @@ describe("Authentication System", () => {
   test("should allow a user to log in with valid credentials", async () => {
     const { csrfToken, cookie } = await getCsrfToken("/auth/login");
 
-    const response = await agent
+    const response = await request(app)
       .post("/auth/login")
       .type("form")
       .set("Cookie", cookie)
       .send({
-        email: "testuser@example.com",
+        identifier: "testuser@example.com", // Use 'identifier' instead of 'email'
+        password: "testpassword",
+        _csrf: csrfToken,
+      });
+
+    expect(response.status).toBe(302); // App redirects on success
+    expect(response.headers.location).toBe("/"); // Redirect to home
+  });
+
+  test("should allow a user to log in using username", async () => {
+    const { csrfToken, cookie } = await getCsrfToken("/auth/login");
+
+    const response = await request(app)
+      .post("/auth/login")
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        identifier: "testuser", // Use username as identifier
         password: "testpassword",
         _csrf: csrfToken,
       });
@@ -45,18 +62,35 @@ describe("Authentication System", () => {
   test("should reject login with invalid credentials", async () => {
     const { csrfToken, cookie } = await getCsrfToken("/auth/login");
 
-    const response = await agent
+    const response = await request(app)
       .post("/auth/login")
       .type("form")
       .set("Cookie", cookie)
       .send({
-        email: "testuser@example.com",
+        identifier: "testuser@example.com", // Use 'identifier' instead of 'email'
         password: "wrongpassword",
         _csrf: csrfToken,
       });
 
     expect(response.status).toBe(400); // Error 400 for invalid credentials
-    expect(response.text).toContain("Invalid email or password");
+    expect(response.text).toContain("Invalid email/username or password");
+  });
+
+  test("should reject login with invalid username", async () => {
+    const { csrfToken, cookie } = await getCsrfToken("/auth/login");
+
+    const response = await request(app)
+      .post("/auth/login")
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        identifier: "nonexistentuser", // Non-existent username
+        password: "testpassword",
+        _csrf: csrfToken,
+      });
+
+    expect(response.status).toBe(400); // Error 400 for invalid credentials
+    expect(response.text).toContain("Invalid email/username or password");
   });
 
   test("should log out a logged-in user", async () => {
@@ -81,8 +115,8 @@ describe("Authentication System", () => {
   });
 
   test("should handle login CSRF token mismatch", async () => {
-    const response = await agent.post("/auth/login").type("form").send({
-      email: "testuser@example.com",
+    const response = await request(app).post("/auth/login").type("form").send({
+      identifier: "testuser@example.com", // Use 'identifier' instead of 'email'
       password: "testpassword",
       _csrf: "invalid_csrf_token", // Deliberately invalid CSRF token
     });
@@ -94,19 +128,20 @@ describe("Authentication System", () => {
   test("should send a verification email on signup", async () => {
     const { csrfToken, cookie } = await getCsrfToken("/auth/signup");
 
-    const response = await agent
+    const response = await request(app)
       .post("/auth/signup")
       .type("form")
       .set("Cookie", cookie)
       .send({
         email: "newuser@example.com",
+        username: "newuser", // Include 'username'
         password: "securepassword",
         _csrf: csrfToken,
       });
 
     expect(response.status).toBe(200);
     expect(response.text).toContain(
-      "Please check your email to verify your account.",
+      "Signup successful! Please check your email to verify your account.",
     );
 
     expect(mailer.sendMail).toHaveBeenCalledTimes(1);
@@ -120,24 +155,63 @@ describe("Authentication System", () => {
     );
   });
 
+  test("should prevent signup with duplicate email", async () => {
+    const { csrfToken, cookie } = await getCsrfToken("/auth/signup");
+
+    // Attempt to sign up with existing email
+    const response = await request(app)
+      .post("/auth/signup")
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        email: "testuser@example.com", // Existing email
+        username: "uniqueusername", // Unique username
+        password: "securepassword",
+        _csrf: csrfToken,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.text).toContain("Email already in use");
+  });
+
+  test("should prevent signup with duplicate username", async () => {
+    const { csrfToken, cookie } = await getCsrfToken("/auth/signup");
+
+    // Attempt to sign up with existing username
+    const response = await request(app)
+      .post("/auth/signup")
+      .type("form")
+      .set("Cookie", cookie)
+      .send({
+        email: "uniqueemail@example.com",
+        username: "testuser", // Existing username
+        password: "securepassword",
+        _csrf: csrfToken,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.text).toContain("Username already in use");
+  });
+
   test("should return appropriate error for unverified accounts", async () => {
     // Sign up an unverified user
     const { csrfToken: signupCsrf, cookie: signupCookie } =
       await getCsrfToken("/auth/signup");
 
-    const signupResponse = await agent
+    const signupResponse = await request(app)
       .post("/auth/signup")
       .type("form")
       .set("Cookie", signupCookie)
       .send({
         email: "unverified@example.com",
+        username: "unverifieduser", // Include 'username'
         password: "securepassword",
         _csrf: signupCsrf,
       });
 
     expect(signupResponse.status).toBe(200);
     expect(signupResponse.text).toContain(
-      "Please check your email to verify your account.",
+      "Signup successful! Please check your email to verify your account.",
     );
 
     // Ensure the user is created with isVerified = false
@@ -151,12 +225,12 @@ describe("Authentication System", () => {
     const { csrfToken: loginCsrf, cookie: loginCookie } =
       await getCsrfToken("/auth/login");
 
-    const loginResponse = await agent
+    const loginResponse = await request(app)
       .post("/auth/login")
       .type("form")
       .set("Cookie", loginCookie)
       .send({
-        email: "unverified@example.com",
+        identifier: "unverified@example.com", // Use 'identifier' instead of 'email'
         password: "securepassword",
         _csrf: loginCsrf,
       });
@@ -173,12 +247,13 @@ describe("Authentication System", () => {
 
     const { csrfToken, cookie } = await getCsrfToken("/auth/signup");
 
-    const response = await agent
+    const response = await request(app)
       .post("/auth/signup")
       .type("form")
       .set("Cookie", cookie)
       .send({
         email: "erroruser@example.com",
+        username: "erroruser", // Include 'username'
         password: "securepassword",
         _csrf: csrfToken,
       });
