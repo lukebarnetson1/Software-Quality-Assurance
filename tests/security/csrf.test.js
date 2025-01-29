@@ -52,7 +52,7 @@ describe("CSRF Protection", () => {
 
   test("POST /auth/login without CSRF token should be rejected (Unauthenticated)", async () => {
     const response = await request(app).post("/auth/login").type("form").send({
-      email: "testuser@example.com",
+      identifier: "testuser@example.com",
       password: "testpassword",
       // _csrf is omitted
     });
@@ -68,7 +68,7 @@ describe("CSRF Protection", () => {
       .type("form")
       .set("Cookie", cookie)
       .send({
-        email: "testuser@example.com",
+        identifier: "testuser@example.com",
         password: "testpassword",
         _csrf: csrfToken,
       });
