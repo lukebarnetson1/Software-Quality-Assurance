@@ -14,6 +14,22 @@ const User = sequelize.define(
         },
       },
     },
+    username: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+      collate: "NOCASE", // Enforce case-insensitive uniqueness
+      validate: {
+        len: {
+          args: [3, 30],
+          msg: "Username must be between 3 and 30 characters.",
+        },
+        is: {
+          args: /^[a-zA-Z0-9_]+$/i,
+          msg: "Username can only contain letters, numbers, and underscores.",
+        },
+      },
+    },
     password: {
       type: DataTypes.STRING, // Hashed password
       allowNull: false,
@@ -25,6 +41,13 @@ const User = sequelize.define(
   },
   {
     timestamps: true, // Adds createdAt and updatedAt fields
+    indexes: [
+      {
+        unique: true,
+        fields: ["username"],
+        // For SQLite, the 'collate' is already set in the field definition
+      },
+    ],
   },
 );
 

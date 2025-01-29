@@ -4,10 +4,13 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const transporter = require("../config/mailer");
 const { User } = require("../models");
+const { Sequelize, Op } = require("sequelize");
+const { isAuthenticated } = require("../middlewares/auth");
 require("dotenv").config();
 const {
   validateSignUp,
   validateLogin,
+  validateUpdateUsername,
   handleValidationErrors,
 } = require("../middlewares/validation");
 
@@ -49,12 +52,27 @@ router.post(
   handleValidationErrors,
   async (req, res) => {
     try {
-      const { email, password } = req.body;
+      const { email, username, password } = req.body;
 
-      // Check if user already exists
-      const existingUser = await User.findOne({ where: { email } });
+      // Check if email or username already exists (case-insensitive for username)
+      const existingUser = await User.findOne({
+        where: {
+          [Op.or]: [
+            { email },
+            Sequelize.where(
+              Sequelize.fn("lower", Sequelize.col("username")),
+              Sequelize.fn("lower", username),
+            ),
+          ],
+        },
+      });
+
       if (existingUser) {
-        return res.status(400).send("Email already in use");
+        if (existingUser.email === email) {
+          return res.status(400).send("Email already in use");
+        } else {
+          return res.status(400).send("Username already in use");
+        }
       }
 
       // Hash password
@@ -63,6 +81,7 @@ router.post(
       // Create user with isVerified = false
       const newUser = await User.create({
         email,
+        username,
         password: hashedPassword,
         isVerified: false,
       });
@@ -124,12 +143,23 @@ router.post(
   handleValidationErrors,
   async (req, res) => {
     try {
-      const { email, password, rememberMe } = req.body;
+      const { identifier, password, rememberMe } = req.body; // 'identifier' can be email or username
 
-      // Find user by email
-      const user = await User.findOne({ where: { email } });
+      // Perform case-insensitive search for username
+      const user = await User.findOne({
+        where: {
+          [Op.or]: [
+            { email: identifier },
+            Sequelize.where(
+              Sequelize.fn("lower", Sequelize.col("username")),
+              Sequelize.fn("lower", identifier),
+            ),
+          ],
+        },
+      });
+
       if (!user) {
-        return res.status(400).send("Invalid email or password");
+        return res.status(400).send("Invalid email/username or password");
       }
 
       // Check if user is verified
@@ -142,7 +172,7 @@ router.post(
       // Compare password
       const match = await bcrypt.compare(password, user.password);
       if (!match) {
-        return res.status(400).send("Invalid email or password");
+        return res.status(400).send("Invalid email/username or password");
       }
 
       // Save user info to session
@@ -282,6 +312,49 @@ router.post("/update-email", async (req, res) => {
     res.status(500).send("Internal server error.");
   }
 });
+
+// Update Username
+router.get("/update-username", isAuthenticated, (req, res) => {
+  res.render("auth/update-username", { title: "Update Username" });
+});
+
+router.post(
+  "/update-username",
+  isAuthenticated, // Ensure the user is authenticated
+  validateUpdateUsername,
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      const { newUsername } = req.body;
+      const user = await User.findByPk(req.session.userId);
+
+      if (!user) {
+        return res.status(404).send("User not found.");
+      }
+
+      // Check if newUsername already exists (case-insensitive)
+      const existingUser = await User.findOne({
+        where: Sequelize.where(
+          Sequelize.fn("lower", Sequelize.col("username")),
+          Sequelize.fn("lower", newUsername),
+        ),
+      });
+
+      if (existingUser) {
+        return res.status(400).send("Username already in use");
+      }
+
+      // Update username
+      user.username = newUsername;
+      await user.save();
+
+      res.send("Username updated successfully.");
+    } catch (err) {
+      console.error(err);
+      res.status(500).send("Internal server error.");
+    }
+  },
+);
 
 // Delete Account
 router.post("/delete-account", async (req, res) => {
