@@ -1,5 +1,6 @@
 const { body, validationResult } = require("express-validator");
 const sanitiseHtml = require("sanitize-html");
+const zxcvbn = require("zxcvbn");
 
 // Reusable sanitisation function
 const sanitiseInput = (input) => {
@@ -9,6 +10,14 @@ const sanitiseInput = (input) => {
     disallowedTagsMode: "discard",
     enforceHtmlBoundary: true, // Prevent malicious code around valid tags
   });
+};
+
+const validatePasswordStrength = (password) => {
+  const result = zxcvbn(password);
+  if (result.score < 2) {
+    throw new Error("Password is too weak. Please choose a stronger password.");
+  }
+  return true;
 };
 
 // Validation rules for creating/editing blog posts
@@ -49,9 +58,7 @@ const validateSignUp = [
     .matches(/^[a-zA-Z0-9_]+$/)
     .withMessage("Username can only contain letters, numbers, and underscores.")
     .customSanitizer((value) => sanitiseInput(value)),
-  body("password")
-    .isLength({ min: 8 })
-    .withMessage("Password must be at least 8 characters long"),
+  body("password").custom(validatePasswordStrength),
 ];
 
 // Validation rules for login
@@ -76,6 +83,10 @@ const validateUpdateUsername = [
     .customSanitizer((value) => sanitiseInput(value)),
 ];
 
+const validateResetPassword = [
+  body("password").custom(validatePasswordStrength), // Use zxcvbn for password validation
+];
+
 // Middleware to handle validation errors
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
@@ -90,5 +101,6 @@ module.exports = {
   validateSignUp,
   validateLogin,
   validateUpdateUsername,
+  validateResetPassword,
   handleValidationErrors,
 };

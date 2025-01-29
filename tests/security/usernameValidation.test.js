@@ -29,7 +29,7 @@ describe("Username Validation Tests", () => {
       .send({
         email: "invaliduser@example.com",
         username: "invalid@name!", // Invalid characters
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: csrfToken,
       });
 
@@ -47,7 +47,7 @@ describe("Username Validation Tests", () => {
       .send({
         email: "shortuser@example.com",
         username: "ab", // Too short
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: csrfToken,
       });
 
@@ -65,7 +65,7 @@ describe("Username Validation Tests", () => {
       .send({
         email: "longuser@example.com",
         username: "a".repeat(31), // Too long
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: csrfToken,
       });
 
@@ -83,7 +83,7 @@ describe("Username Validation Tests", () => {
       .send({
         email: "validuser@example.com",
         username: "valid_username123", // Valid format
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: csrfToken,
       });
 
@@ -109,7 +109,7 @@ describe("Username Validation Tests", () => {
       .send({
         email: "testcase@example.com",
         username: "CaseTest",
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: csrfToken,
       });
 
@@ -120,7 +120,7 @@ describe("Username Validation Tests", () => {
       .send({
         email: "duplicate@example.com",
         username: "casetest", // Different case
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: csrfToken,
       });
 
@@ -141,7 +141,7 @@ describe("Username Validation Tests", () => {
       .send({
         email: "caselogin@example.com",
         username: "CaseSensitive",
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: signupCsrf,
       });
 
@@ -160,7 +160,7 @@ describe("Username Validation Tests", () => {
     // Login with different casing
     const response = await agent.post("/auth/login").type("form").send({
       identifier: "casesensitive", // Lowercase username
-      password: "securepassword",
+      password: "StrongPass123!",
       _csrf: loginCsrf,
     });
 
@@ -181,7 +181,7 @@ describe("Username Validation Tests", () => {
       .send({
         email: "update@example.com",
         username: "updatableUser",
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: signupCsrf,
       });
 
@@ -196,7 +196,7 @@ describe("Username Validation Tests", () => {
     )[1];
     await agent.post("/auth/login").type("form").send({
       identifier: "updatableUser",
-      password: "securepassword",
+      password: "StrongPass123!",
       _csrf: loginCsrf,
     });
 
@@ -231,7 +231,7 @@ describe("Username Validation Tests", () => {
       .send({
         email: "invalidupdate@example.com",
         username: "invalidUpdateUser",
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: signupCsrf,
       });
 
@@ -248,7 +248,7 @@ describe("Username Validation Tests", () => {
     )[1];
     await agent.post("/auth/login").type("form").send({
       identifier: "invalidUpdateUser",
-      password: "securepassword",
+      password: "StrongPass123!",
       _csrf: loginCsrf,
     });
 

@@ -2,7 +2,7 @@ extends ../layouts/layout
 
 block content
   h2 Sign Up
-  form(method="POST", action="/auth/signup")
+  form(method="POST", action="/auth/signup", id="signup-form")
     input(type="hidden", name="_csrf", value=csrfToken)
     
     label(for="email") Email:
@@ -14,7 +14,64 @@ block content
     br
 
     label(for="password") Password:
-    input(type="password", name="password", required)
+    input(type="password", name="password", id="password", required)
+    p#password-strength-text Password Strength:
+    div#password-strength-bar(style="width: 100%; height: 10px; background: #ccc;")
+      div#password-strength-fill(style="width: 0%; height: 100%; background: red;")
+    br
+
+    label(for="confirm-password") Confirm Password:
+    input(type="password", name="confirm-password", id="confirm-password", required)
     br
 
     button(type="submit") Sign Up
+
+  script(src="https://cdnjs.cloudflare.com/ajax/libs/zxcvbn/4.4.2/zxcvbn.js")
+  script.
+    document.addEventListener("DOMContentLoaded", function () {
+      const form = document.getElementById("signup-form");
+      const passwordInput = document.getElementById("password");
+      const confirmPasswordInput = document.getElementById("confirm-password");
+      const strengthBar = document.getElementById("password-strength-fill");
+      const strengthText = document.getElementById("password-strength-text");
+
+      passwordInput.addEventListener("input", function () {
+        const password = passwordInput.value;
+        const strength = zxcvbn(password).score; // Score from 0 (very weak) to 4 (strong)
+
+        // Update strength bar width and color
+        const colors = ["red", "orange", "yellow", "blue", "green"];
+        strengthBar.style.width = `${(strength + 1) * 20}%`;
+        strengthBar.style.background = colors[strength];
+
+        // Update strength text
+        const strengthLabels = ["Very Weak", "Weak", "Fair", "Good", "Strong"];
+        strengthText.textContent = `Password Strength: ${strengthLabels[strength]}`;
+
+        // Set native validation message if password is too weak
+        if (strength < 2) {
+          passwordInput.setCustomValidity("Password is too weak. Please choose a stronger one.");
+        } else {
+          passwordInput.setCustomValidity(""); // Clear validation message
+        }
+      });
+
+      confirmPasswordInput.addEventListener("input", function () {
+        if (confirmPasswordInput.value !== passwordInput.value) {
+          confirmPasswordInput.setCustomValidity("Passwords do not match.");
+        } else {
+          confirmPasswordInput.setCustomValidity("");
+        }
+      });
+
+      // Prevent form submission if password is weak
+      form.addEventListener("submit", function (event) {
+        if (!passwordInput.checkValidity()) {
+          passwordInput.reportValidity();
+          event.preventDefault();
+        } else if (!confirmPasswordInput.checkValidity()) {
+          confirmPasswordInput.reportValidity();
+          event.preventDefault();
+        }
+      });
+    });

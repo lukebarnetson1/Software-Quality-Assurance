@@ -135,7 +135,7 @@ describe("Authentication System", () => {
       .send({
         email: "newuser@example.com",
         username: "newuser", // Include 'username'
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: csrfToken,
       });
 
@@ -166,7 +166,7 @@ describe("Authentication System", () => {
       .send({
         email: "testuser@example.com", // Existing email
         username: "uniqueusername", // Unique username
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: csrfToken,
       });
 
@@ -185,7 +185,7 @@ describe("Authentication System", () => {
       .send({
         email: "uniqueemail@example.com",
         username: "testuser", // Existing username
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: csrfToken,
       });
 
@@ -205,7 +205,7 @@ describe("Authentication System", () => {
       .send({
         email: "unverified@example.com",
         username: "unverifieduser", // Include 'username'
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: signupCsrf,
       });
 
@@ -231,7 +231,7 @@ describe("Authentication System", () => {
       .set("Cookie", loginCookie)
       .send({
         identifier: "unverified@example.com", // Use 'identifier' instead of 'email'
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: loginCsrf,
       });
 
@@ -254,7 +254,7 @@ describe("Authentication System", () => {
       .send({
         email: "erroruser@example.com",
         username: "erroruser", // Include 'username'
-        password: "securepassword",
+        password: "StrongPass123!",
         _csrf: csrfToken,
       });
 
