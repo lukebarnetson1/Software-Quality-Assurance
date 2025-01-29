@@ -1,3 +1,5 @@
+// ./tests/setup/testSetup.js
+
 const request = require("supertest");
 const app = require("../../app");
 const { sequelize, User } = require("../../models");
@@ -22,10 +24,11 @@ beforeEach(async () => {
     await models[modelName].destroy({ where: {}, truncate: true });
   }
 
-  // Create a test user
+  // Create a test user with username
   const hashedPassword = await bcrypt.hash("testpassword", 10);
   await User.create({
     email: "testuser@example.com",
+    username: "testuser",
     password: hashedPassword,
     isVerified: true, // Ensure the user is verified for authentication
   });
@@ -49,9 +52,9 @@ async function loginUser(agent) {
     throw new Error("Failed to extract CSRF token from login page.");
   }
 
-  // Perform login
+  // Perform login using 'identifier' instead of 'email'
   const response = await agent.post("/auth/login").type("form").send({
-    email: "testuser@example.com",
+    identifier: "testuser@example.com", // Can also use 'testuser'
     password: "testpassword",
     _csrf: csrfToken,
   });
@@ -96,7 +99,8 @@ async function getCsrfToken(route = "/auth/login") {
     throw new Error(`Failed to extract CSRF token from route: ${route}`);
   }
 
-  const cookie = response.headers["set-cookie"];
+  // Join cookies to format correctly for headers
+  const cookie = response.headers["set-cookie"].join("; ");
   return { csrfToken, cookie };
 }
 
