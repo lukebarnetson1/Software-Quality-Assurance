@@ -1,10 +1,9 @@
 module.exports = {
   isAuthenticated: (req, res, next) => {
     if (req.session.userId) {
-      // User is logged in
-      return next();
+      return next(); // User is logged in, continue
     }
-    // Redirect to login if not authenticated
+    req.flash("error", "You must be logged in to access this page.");
     return res.redirect("/auth/login");
   },
 };

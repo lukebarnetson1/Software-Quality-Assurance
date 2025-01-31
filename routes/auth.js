@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const transporter = require("../config/mailer");
-const { User } = require("../models");
+const { BlogPost, User } = require("../models");
 const { Sequelize, Op } = require("sequelize");
 const { isAuthenticated } = require("../middlewares/auth");
 require("dotenv").config();
@@ -136,17 +136,17 @@ router.get("/verify", async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findOne({ where: { email: decoded.email } });
     if (!user) {
-      req.flash("error", "Invalid token or user no longer exists");
+      req.flash("error", "Invalid token or user no longer exists.");
       return res.redirect("/auth/login");
     }
     if (user.isVerified) {
-      req.flash("success", "Account already verified. Please log in.");
-      return res.redirect("/auth/login");
+      req.flash("success", "Account already verified. You are now logged in.");
+      return res.redirect("/");
     }
     user.isVerified = true;
     await user.save();
-    req.flash("success", "Email verified! You can now log in.");
-    res.redirect("/auth/login");
+    req.flash("success", "Email verified! You are now logged in.");
+    res.redirect("/");
   } catch (err) {
     console.error(err);
     req.flash("error", "Token is invalid or has expired.");
@@ -309,6 +309,10 @@ router.post("/reset", async (req, res) => {
 });
 
 // UPDATE EMAIL
+router.get("/update-email", isAuthenticated, (req, res) => {
+  res.render("auth/update-email", { title: "Update Email Address" });
+});
+
 router.post("/update-email", async (req, res) => {
   if (!req.session.userId) {
     req.flash("error", "You must be logged in to update your email.");
@@ -402,6 +406,10 @@ router.post(
 );
 
 // DELETE ACCOUNT
+router.get("/delete-account", isAuthenticated, (req, res) => {
+  res.render("auth/delete-account", { title: "Delete Username" });
+});
+
 router.post("/delete-account", async (req, res) => {
   if (!req.session.userId) {
     req.flash("error", "Not logged in.");
@@ -413,6 +421,11 @@ router.post("/delete-account", async (req, res) => {
       req.flash("error", "User not found.");
       return res.redirect("/");
     }
+    // Change author of all posts belonging to that user to "[Deleted-User]"
+    await BlogPost.update(
+      { author: "[Deleted-User]" },
+      { where: { author: user.username } },
+    );
     await user.destroy();
     req.flash("success", "Account deleted successfully.");
     req.session.destroy((err) => {

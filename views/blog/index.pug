@@ -2,6 +2,12 @@ extends ../layouts/layout
 
 block content
   h2 Posts
+
+  // Show this message if the user isn't logged in
+  if !user
+    p Log in to create a post.
+    a(href="/auth/login", class="btn btn-primary") Log In
+
   if posts.length
     ul
       each post in posts
@@ -9,4 +15,5 @@ block content
           a(href=`/post/${post.id}`) #{post.title} by #{post.author} (#{post.created_at.toLocaleDateString()})
   else
     p No posts available.
-    a(href="/create") Create your first post.
+    if user
+      a(href="/create") Create your first post.

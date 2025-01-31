@@ -14,10 +14,18 @@ html(lang="en")
         ul
           li
             a(href="/") Home
-          li
-            a(href="/create") Create Post
+          if user
+            li
+              a(href="/create") Create Post
+            li
+              a(href="/auth/logout") Logout
+          else
+            li
+              a(href="/auth/login") Log In
           li
             a(href="/stats") Stats
+
+
 
     // Flash Alerts
     if flashSuccess && flashSuccess.length

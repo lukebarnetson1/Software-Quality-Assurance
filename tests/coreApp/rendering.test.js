@@ -1,7 +1,7 @@
 const request = require("supertest");
 const app = require("../../app");
 const { BlogPost } = require("../../models");
-const { loginUser } = require("../setup/testSetup");
+const { loginUser, getTestUser } = require("../setup/testSetup");
 
 describe("Blog API - Rendering Routes", () => {
   let agent;
@@ -35,7 +35,8 @@ describe("Blog API - Rendering Routes", () => {
     const post = await BlogPost.create({
       title: "Editable Post",
       content: "Content to edit",
-      author: "Author2",
+      // Ensure the post’s author matches the logged‐in user:
+      author: getTestUser().username,
     });
 
     const response = await agent.get(`/edit/${post.id}`);

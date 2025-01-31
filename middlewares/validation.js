@@ -34,13 +34,6 @@ const validateBlogPost = [
     .notEmpty()
     .withMessage("Content is required")
     .customSanitizer((value) => sanitiseInput(value)),
-  body("author")
-    .trim()
-    .notEmpty()
-    .withMessage("Author is required")
-    .isLength({ max: 100 })
-    .withMessage("Author name must be less than 100 characters")
-    .customSanitizer((value) => sanitiseInput(value)),
 ];
 
 // Validation rules for sign-up

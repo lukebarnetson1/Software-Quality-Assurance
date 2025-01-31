@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { BlogPost } = require("../models");
+const { BlogPost, User } = require("../models");
 const {
   validateBlogPost,
   handleValidationErrors,
@@ -25,10 +25,15 @@ router.post(
   validateBlogPost,
   handleValidationErrors,
   async (req, res) => {
-    const { title, content, author } = req.body;
+    const { title, content } = req.body;
 
     try {
-      await BlogPost.create({ title, content, author });
+      // Find the currently logged-in user
+      const user = await User.findByPk(req.session.userId);
+      // If for any reason the user can’t be found, default to "[Deleted-User]"
+      const authorName = user ? user.username : "[Deleted-User]";
+
+      await BlogPost.create({ title, content, author: authorName });
       res.redirect("/");
     } catch (err) {
       console.error(err);
@@ -50,11 +55,18 @@ router.get("/post/:id", async (req, res) => {
 // Render the edit form for a specific blog post (authenticated users only)
 router.get("/edit/:id", isAuthenticated, async (req, res) => {
   const post = await BlogPost.findByPk(req.params.id);
-  if (post) {
-    res.render("blog/edit", { title: "Edit Post", post });
-  } else {
-    res.status(404).send("Post not found");
+  if (!post) {
+    req.flash("error", "Post not found.");
+    return res.redirect("/");
   }
+
+  const user = await User.findByPk(req.session.userId);
+  if (!user || user.username !== post.author) {
+    req.flash("error", "You can only edit your own posts.");
+    return res.redirect("/");
+  }
+
+  res.render("blog/edit", { title: "Edit Post", post });
 });
 
 // Update a specific blog post (authenticated users only)
@@ -65,13 +77,16 @@ router.post(
   handleValidationErrors,
   async (req, res) => {
     const post = await BlogPost.findByPk(req.params.id);
-    if (post) {
-      const { title, content } = req.body;
-      await post.update({ title, content });
-      res.redirect(`/post/${post.id}`);
-    } else {
-      res.status(404).send("Post not found");
+    if (!post) {
+      req.flash("error", "Post not found.");
+      return res.redirect("/");
     }
+
+    const { title, content } = req.body;
+    await post.update({ title, content });
+
+    req.flash("success", "Post updated successfully!");
+    res.redirect(`/post/${post.id}`);
   },
 );
 

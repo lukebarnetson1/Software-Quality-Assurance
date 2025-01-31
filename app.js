@@ -5,7 +5,7 @@ const cookieParser = require("cookie-parser");
 const session = require("express-session");
 const flash = require("connect-flash");
 const SQLiteStore = require("connect-sqlite3")(session);
-const { initialiseModels } = require("./models");
+const { User, initialiseModels } = require("./models");
 const blogRoutes = require("./routes/blog");
 const authRoutes = require("./routes/auth");
 
@@ -43,6 +43,17 @@ app.use(
     },
   }),
 );
+
+// Store logged-in user's details
+app.use(async (req, res, next) => {
+  if (req.session.userId) {
+    const user = await User.findByPk(req.session.userId);
+    res.locals.user = user || null; // If user not found, set to null
+  } else {
+    res.locals.user = null;
+  }
+  next();
+});
 
 app.use(flash());
 

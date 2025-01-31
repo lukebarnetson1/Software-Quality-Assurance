@@ -1,7 +1,11 @@
 const request = require("supertest");
 const app = require("../../app");
 const { BlogPost } = require("../../models");
-const { getAuthenticatedCsrfToken, loginUser } = require("../setup/testSetup");
+const {
+  getAuthenticatedCsrfToken,
+  loginUser,
+  getTestUser,
+} = require("../setup/testSetup");
 
 describe("Input Validation and Sanitisation", () => {
   let agent;
@@ -17,13 +21,12 @@ describe("Input Validation and Sanitisation", () => {
     const response = await agent.post("/create").type("form").send({
       title: "",
       content: "",
-      author: "",
       _csrf: csrfToken,
     });
 
     expect(response.status).toBe(400);
 
-    // Assuming your validation middleware sends back errors in the response body
+    // Expect errors only for title and content.
     const normalisedErrors = response.body.errors.map((error) => ({
       msg: error.msg,
     }));
@@ -32,7 +35,6 @@ describe("Input Validation and Sanitisation", () => {
       expect.arrayContaining([
         { msg: "Title is required" },
         { msg: "Content is required" },
-        { msg: "Author is required" },
       ]),
     );
   });
@@ -42,7 +44,6 @@ describe("Input Validation and Sanitisation", () => {
     const response = await agent.post("/create").type("form").send({
       title: "Test Title",
       content: maliciousContent,
-      author: "Test Author",
       _csrf: csrfToken,
     });
 
@@ -54,30 +55,12 @@ describe("Input Validation and Sanitisation", () => {
     expect(post.content).not.toContain("alert");
   });
 
-  test("POST /create should sanitise malicious input in author", async () => {
-    const maliciousAuthor = "<script>alert('Hacked!')</script>";
-    const response = await agent.post("/create").type("form").send({
-      title: "Valid Title",
-      content: "Valid Content",
-      author: maliciousAuthor,
-      _csrf: csrfToken,
-    });
-
-    expect(response.status).toBe(302);
-
-    const post = await BlogPost.findOne({
-      where: { content: "Valid Content" },
-    });
-    expect(post).not.toBeNull();
-    expect(post.author).not.toContain("<script>");
-    expect(post.author).not.toContain("alert");
-  });
-
   test("POST /edit/:id should reject invalid input", async () => {
     const post = await BlogPost.create({
       title: "Initial Title",
       content: "Initial Content",
-      author: "Author",
+      // Make sure the post belongs to the logged-in test user:
+      author: getTestUser().username,
     });
 
     const editCsrfToken = await getAuthenticatedCsrfToken(
@@ -88,13 +71,11 @@ describe("Input Validation and Sanitisation", () => {
     const response = await agent.post(`/edit/${post.id}`).type("form").send({
       title: "",
       content: "",
-      author: "Author", // Include 'author' to satisfy validation
       _csrf: editCsrfToken,
     });
 
     expect(response.status).toBe(400);
 
-    // Assuming your validation middleware sends back errors in the response body
     const normalisedErrors = response.body.errors.map((error) => ({
       msg: error.msg,
     }));
@@ -108,13 +89,14 @@ describe("Input Validation and Sanitisation", () => {
   });
 
   test("POST /edit/:id should sanitise malicious input in title", async () => {
+    const maliciousInput = "<script>alert('Hacked!')</script>";
     const post = await BlogPost.create({
       title: "Original Post",
       content: "Original Content",
-      author: "Author",
+      // Ensure the post’s author is the logged-in user:
+      author: getTestUser().username,
     });
 
-    const maliciousInput = "<script>alert('Hacked!')</script>";
     const editCsrfToken = await getAuthenticatedCsrfToken(
       agent,
       `/edit/${post.id}`,
@@ -123,7 +105,6 @@ describe("Input Validation and Sanitisation", () => {
     const response = await agent.post(`/edit/${post.id}`).type("form").send({
       title: maliciousInput,
       content: "Updated Content",
-      author: "Author", // Include 'author' to satisfy validation
       _csrf: editCsrfToken,
     });
 
@@ -142,13 +123,11 @@ describe("Input Validation and Sanitisation", () => {
       .send({
         title: "a".repeat(101),
         content: "Valid Content",
-        author: "b".repeat(101),
         _csrf: csrfToken,
       });
 
     expect(response.status).toBe(400);
 
-    // Assuming your validation middleware sends back errors in the response body
     const normalisedErrors = response.body.errors.map((error) => ({
       msg: error.msg,
     }));
@@ -156,7 +135,6 @@ describe("Input Validation and Sanitisation", () => {
     expect(normalisedErrors).toEqual(
       expect.arrayContaining([
         { msg: "Title must be less than 100 characters" },
-        { msg: "Author name must be less than 100 characters" },
       ]),
     );
   });
