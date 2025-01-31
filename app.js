@@ -3,6 +3,7 @@ const path = require("path");
 const csrf = require("csurf");
 const cookieParser = require("cookie-parser");
 const session = require("express-session");
+const flash = require("connect-flash");
 const SQLiteStore = require("connect-sqlite3")(session);
 const { initialiseModels } = require("./models");
 const blogRoutes = require("./routes/blog");
@@ -42,6 +43,15 @@ app.use(
     },
   }),
 );
+
+app.use(flash());
+
+// Middleware to pass flash messages to res.locals
+app.use((req, res, next) => {
+  res.locals.flashSuccess = req.flash("success");
+  res.locals.flashError = req.flash("error");
+  next();
+});
 
 // // Set up CSRF protection with tokens stored in cookies
 app.use(csrf({ cookie: true }));

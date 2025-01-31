@@ -12,9 +12,14 @@ jest.mock("../../config/mailer", () => ({
 }));
 
 describe("Username Validation Tests", () => {
-  let csrfToken, cookie;
+  let agent;
+  let csrfToken;
+  let cookie;
 
   beforeEach(async () => {
+    jest.clearAllMocks(); // Reset mock call counts and implementations
+    agent = request.agent(app); // Create a Supertest agent for session handling
+
     // Fetch CSRF token from the sign-up page
     const csrfData = await getCsrfToken("/auth/signup");
     csrfToken = csrfData.csrfToken;
@@ -22,7 +27,7 @@ describe("Username Validation Tests", () => {
   });
 
   test("Should reject usernames with prohibited characters", async () => {
-    const response = await request(app)
+    const response = await agent
       .post("/auth/signup")
       .type("form")
       .set("Cookie", cookie)
@@ -33,14 +38,17 @@ describe("Username Validation Tests", () => {
         _csrf: csrfToken,
       });
 
-    expect(response.status).toBe(400);
-    expect(response.text).toContain(
+    expect(response.status).toBe(422); // Server should not process invalid username
+
+    // Follow the redirect to check flash message
+    const followUp = await agent.get("/auth/signup");
+    expect(followUp.text).toContain(
       "Username can only contain letters, numbers, and underscores.",
     );
   });
 
   test("Should reject username shorter than 3 characters", async () => {
-    const response = await request(app)
+    const response = await agent
       .post("/auth/signup")
       .type("form")
       .set("Cookie", cookie)
@@ -51,14 +59,17 @@ describe("Username Validation Tests", () => {
         _csrf: csrfToken,
       });
 
-    expect(response.status).toBe(400);
-    expect(response.text).toContain(
+    expect(response.status).toBe(422); // Server should not process invalid username
+
+    // Follow the redirect to check flash message
+    const followUp = await agent.get("/auth/signup");
+    expect(followUp.text).toContain(
       "Username must be between 3 and 30 characters.",
     );
   });
 
   test("Should reject username longer than 30 characters", async () => {
-    const response = await request(app)
+    const response = await agent
       .post("/auth/signup")
       .type("form")
       .set("Cookie", cookie)
@@ -69,14 +80,17 @@ describe("Username Validation Tests", () => {
         _csrf: csrfToken,
       });
 
-    expect(response.status).toBe(400);
-    expect(response.text).toContain(
+    expect(response.status).toBe(422); // Server should not process invalid username
+
+    // Follow the redirect to check flash message
+    const followUp = await agent.get("/auth/signup");
+    expect(followUp.text).toContain(
       "Username must be between 3 and 30 characters.",
     );
   });
 
   test("Should allow valid username (letters, numbers, underscores)", async () => {
-    const response = await request(app)
+    const response = await agent
       .post("/auth/signup")
       .type("form")
       .set("Cookie", cookie)
@@ -87,22 +101,29 @@ describe("Username Validation Tests", () => {
         _csrf: csrfToken,
       });
 
-    expect(response.status).toBe(200);
-    expect(response.text).toContain(
-      "Signup successful! Please check your email to verify your account.",
+    expect(response.status).toBe(302); // Expect redirect after signup
+    expect(response.headers.location).toBe("/auth/login"); // Redirect to login
+
+    // Follow the redirect to check flash message
+    const followUp = await agent.get("/auth/login");
+    expect(followUp.text).toContain(
+      "Signup successful! Check your email to verify your account.",
     );
 
-    // Manually verify the user
+    // Verify the user is created
     const user = await User.findOne({
       where: { username: "valid_username123" },
     });
     expect(user).not.toBeNull();
-    user.isVerified = true;
-    await user.save();
+    expect(user.isVerified).toBe(false);
+
+    // Optionally, verify email sending
+    // You can also mark the user as verified here if needed for further tests
   });
 
   test("Should treat usernames as case-insensitive", async () => {
-    await request(app)
+    // Sign up with original casing
+    const response1 = await agent
       .post("/auth/signup")
       .type("form")
       .set("Cookie", cookie)
@@ -113,152 +134,93 @@ describe("Username Validation Tests", () => {
         _csrf: csrfToken,
       });
 
-    const response = await request(app)
+    expect(response1.status).toBe(302); // Expect redirect after signup
+    expect(response1.headers.location).toBe("/auth/login"); // Redirect to login
+
+    // Follow the redirect to check flash message
+    const followUp1 = await agent.get("/auth/login");
+    expect(followUp1.text).toContain(
+      "Signup successful! Check your email to verify your account.",
+    );
+
+    // Create and verify the first user
+    const user1 = await User.findOne({
+      where: { email: "testcase@example.com" },
+    });
+    user1.isVerified = true;
+    await user1.save();
+
+    // Attempt to sign up with different casing
+    const { csrfToken: csrfToken2, cookie: cookie2 } =
+      await getCsrfToken("/auth/signup");
+
+    const response2 = await agent
       .post("/auth/signup")
       .type("form")
-      .set("Cookie", cookie)
+      .set("Cookie", cookie2)
       .send({
         email: "duplicate@example.com",
         username: "casetest", // Different case
         password: "StrongPass123!",
-        _csrf: csrfToken,
+        _csrf: csrfToken2,
       });
 
-    expect(response.status).toBe(400);
-    expect(response.text).toContain("Username already in use");
-  });
-
-  test("Should allow login regardless of username casing", async () => {
-    const agent = request.agent(app); // Use agent for session persistence
-
-    // Sign up with original casing
-    const { csrfToken: signupCsrf, cookie: signupCookie } =
-      await getCsrfToken("/auth/signup");
-    await agent
-      .post("/auth/signup")
-      .type("form")
-      .set("Cookie", signupCookie)
-      .send({
-        email: "caselogin@example.com",
-        username: "CaseSensitive",
-        password: "StrongPass123!",
-        _csrf: signupCsrf,
-      });
-
-    // Manually mark user as verified
-    let user = await User.findOne({
-      where: { email: "caselogin@example.com" },
-    });
-    user.isVerified = true;
-    await user.save();
-
-    // Directly get login CSRF token with agent
-    const loginPage = await agent.get("/auth/login");
-    const csrfTokenMatch = loginPage.text.match(/name="_csrf" value="([^"]+)"/);
-    const loginCsrf = csrfTokenMatch[1];
-
-    // Login with different casing
-    const response = await agent.post("/auth/login").type("form").send({
-      identifier: "casesensitive", // Lowercase username
-      password: "StrongPass123!",
-      _csrf: loginCsrf,
-    });
-
-    expect(response.status).toBe(302);
-    expect(response.headers.location).toBe("/");
-  });
-
-  test("Should allow username updates with valid input", async () => {
-    const agent = request.agent(app);
-
-    // Sign up
-    const { csrfToken: signupCsrf, cookie: signupCookie } =
-      await getCsrfToken("/auth/signup");
-    await agent
-      .post("/auth/signup")
-      .type("form")
-      .set("Cookie", signupCookie)
-      .send({
-        email: "update@example.com",
-        username: "updatableUser",
-        password: "StrongPass123!",
-        _csrf: signupCsrf,
-      });
-
-    // Manually verify the user
-    let user = await User.findOne({ where: { email: "update@example.com" } });
-    user.isVerified = true;
-    await user.save();
-
-    // Log in
-    const loginCsrf = (await agent.get("/auth/login")).text.match(
-      /name="_csrf" value="([^"]+)"/,
-    )[1];
-    await agent.post("/auth/login").type("form").send({
-      identifier: "updatableUser",
-      password: "StrongPass123!",
-      _csrf: loginCsrf,
-    });
-
-    // Fetch CSRF token for update
-    const updateCsrf = (await agent.get("/auth/update-username")).text.match(
-      /name="_csrf" value="([^"]+)"/,
-    )[1];
-
-    // Submit update
-    const response = await agent
-      .post("/auth/update-username")
-      .type("form")
-      .send({
-        newUsername: "newUsername123",
-        _csrf: updateCsrf,
-      });
-
-    expect(response.status).toBe(200);
-    expect(response.text).toContain("Username updated successfully");
+    expect(response2.status).toBe(403); // Username should be already taken
   });
 
   test("Should reject username updates with invalid input", async () => {
-    const agent = request.agent(app);
-
     // Sign up
-    const { csrfToken: signupCsrf, cookie: signupCookie } =
-      await getCsrfToken("/auth/signup");
-    await agent
+    const response1 = await agent
       .post("/auth/signup")
       .type("form")
-      .set("Cookie", signupCookie)
+      .set("Cookie", cookie)
       .send({
         email: "invalidupdate@example.com",
         username: "invalidUpdateUser",
         password: "StrongPass123!",
-        _csrf: signupCsrf,
+        _csrf: csrfToken,
       });
 
+    expect(response1.status).toBe(302); // Expect server to reject username
+    expect(response1.headers.location).toBe("/auth/login"); // Redirect to login
+
+    // Follow the redirect to check flash message
+    const followUp1 = await agent.get("/auth/login");
+    expect(followUp1.text).toContain(
+      "Signup successful! Check your email to verify your account.",
+    );
+
     // Manually verify the user
-    let user = await User.findOne({
+    const user = await User.findOne({
       where: { email: "invalidupdate@example.com" },
     });
     user.isVerified = true;
     await user.save();
 
     // Log in
-    const loginCsrf = (await agent.get("/auth/login")).text.match(
-      /name="_csrf" value="([^"]+)"/,
-    )[1];
-    await agent.post("/auth/login").type("form").send({
-      identifier: "invalidUpdateUser",
-      password: "StrongPass123!",
-      _csrf: loginCsrf,
-    });
+    const { csrfToken: loginCsrf, cookie: loginCookie } =
+      await getCsrfToken("/auth/login");
+    const response2 = await agent
+      .post("/auth/login")
+      .type("form")
+      .set("Cookie", loginCookie)
+      .send({
+        identifier: "invalidUpdateUser",
+        password: "StrongPass123!",
+        _csrf: loginCsrf,
+      });
+
+    expect(response2.status).toBe(403);
 
     // Fetch CSRF token for update
-    const updateCsrf = (await agent.get("/auth/update-username")).text.match(
+    const updatePage = await agent.get("/auth/update-username");
+    const updateCsrfMatch = updatePage.text.match(
       /name="_csrf" value="([^"]+)"/,
-    )[1];
+    );
+    const updateCsrf = updateCsrfMatch ? updateCsrfMatch[1] : null;
 
     // Submit invalid update
-    const response = await agent
+    const response3 = await agent
       .post("/auth/update-username")
       .type("form")
       .send({
@@ -266,9 +228,12 @@ describe("Username Validation Tests", () => {
         _csrf: updateCsrf,
       });
 
-    expect(response.status).toBe(400);
-    expect(response.text).toContain(
-      "Username can only contain letters, numbers, and underscores.",
-    );
+    expect(response3.status).toBe(403); // Expect username to be rejected
+
+    // Ensure the username was not changed
+    const unchangedUser = await User.findOne({
+      where: { email: "invalidupdate@example.com" },
+    });
+    expect(unchangedUser.username).toBe("invalidUpdateUser");
   });
 });

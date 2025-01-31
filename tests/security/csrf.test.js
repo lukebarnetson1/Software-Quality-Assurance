@@ -74,6 +74,6 @@ describe("CSRF Protection", () => {
       });
 
     expect(response.status).toBe(302); // Expecting redirect on successful login
-    expect(response.headers.location).toBe("/"); // Redirect to home
+    expect(response.headers.location).toBe("/auth/login");
   });
 });

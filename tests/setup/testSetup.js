@@ -1,9 +1,11 @@
-// ./tests/setup/testSetup.js
-
 const request = require("supertest");
 const app = require("../../app");
 const { sequelize, User } = require("../../models");
 const bcrypt = require("bcrypt");
+const { v4: uuidv4 } = require("uuid");
+
+// Module-level variable to store test user info
+let testUser = {};
 
 // Reset the database before all tests
 beforeAll(async () => {
@@ -24,14 +26,23 @@ beforeEach(async () => {
     await models[modelName].destroy({ where: {}, truncate: true });
   }
 
-  // Create a test user with username
+  // Generate a unique test user for this test run
+  const uniqueEmail = `testuser_${uuidv4()}@example.com`;
+  const uniqueUsername = `testuser_${uuidv4().slice(0, 8)}`;
+
   const hashedPassword = await bcrypt.hash("testpassword", 10);
   await User.create({
-    email: "testuser@example.com",
-    username: "testuser",
+    email: uniqueEmail,
+    username: uniqueUsername,
     password: hashedPassword,
-    isVerified: true, // Ensure the user is verified for authentication
+    isVerified: true,
   });
+
+  // Store the test user's info
+  testUser = {
+    email: uniqueEmail,
+    username: uniqueUsername,
+  };
 });
 
 /**
@@ -52,9 +63,9 @@ async function loginUser(agent) {
     throw new Error("Failed to extract CSRF token from login page.");
   }
 
-  // Perform login using 'identifier' instead of 'email'
+  // Perform login using the test user's email
   const response = await agent.post("/auth/login").type("form").send({
-    identifier: "testuser@example.com", // Can also use 'testuser'
+    identifier: testUser.email, // Use testUser.email
     password: "testpassword",
     _csrf: csrfToken,
   });
@@ -104,4 +115,14 @@ async function getCsrfToken(route = "/auth/login") {
   return { csrfToken, cookie };
 }
 
-module.exports = { getAuthenticatedCsrfToken, loginUser, getCsrfToken };
+// Export testUser for reference in tests if needed
+function getTestUser() {
+  return testUser;
+}
+
+module.exports = {
+  getAuthenticatedCsrfToken,
+  loginUser,
+  getCsrfToken,
+  getTestUser,
+};
