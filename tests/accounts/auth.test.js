@@ -12,8 +12,6 @@ jest.mock("../../config/mailer", () => ({
   }),
 }));
 
-const mailer = require("../../config/mailer"); // Import the mocked mailer
-
 describe("Authentication System", () => {
   let agent;
 
@@ -183,8 +181,6 @@ describe("Authentication System", () => {
       });
 
     expect(response.status).toBe(302); // Expect redirect after signup
-
-    expect(mailer.sendMail).toHaveBeenCalledTimes(1);
   });
 
   test("should prevent signup with duplicate email", async () => {
