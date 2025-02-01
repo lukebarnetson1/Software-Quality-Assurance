@@ -1,9 +1,16 @@
-require("../setup/testSetup");
 const request = require("supertest");
 const app = require("../../app");
 const { BlogPost } = require("../../models");
+const { loginUser } = require("../setup/testSetup");
 
 describe("Blog API - Statistics Route", () => {
+  let agent;
+
+  beforeEach(async () => {
+    agent = request.agent(app);
+    await loginUser(agent); // Log in the test user
+  });
+
   test("GET /stats should calculate statistics correctly", async () => {
     await BlogPost.create({
       title: "Short",
@@ -21,7 +28,7 @@ describe("Blog API - Statistics Route", () => {
       author: "Author3",
     });
 
-    const response = await request(app).get("/stats");
+    const response = await agent.get("/stats");
     expect(response.status).toBe(200);
     expect(response.text).toContain("Average Length: 5 characters");
     expect(response.text).toContain("Median Length: 5 characters");
@@ -30,7 +37,7 @@ describe("Blog API - Statistics Route", () => {
   });
 
   test("GET /stats should handle empty database gracefully", async () => {
-    const response = await request(app).get("/stats");
+    const response = await agent.get("/stats");
     expect(response.status).toBe(200);
     expect(response.text).toContain("Average Length: 0 characters");
     expect(response.text).toContain("Median Length: 0 characters");
@@ -60,7 +67,7 @@ describe("Blog API - Statistics Route", () => {
       author: "Author4",
     });
 
-    const response = await request(app).get("/stats");
+    const response = await agent.get("/stats");
     expect(response.status).toBe(200);
     expect(response.text).toContain("Median Length: 4 characters");
   });

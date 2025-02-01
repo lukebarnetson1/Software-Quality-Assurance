@@ -1,100 +1,114 @@
 const request = require("supertest");
 const app = require("../../app");
 const { BlogPost } = require("../../models");
-const { getCsrfToken } = require("../setup/testSetup");
+const {
+  getAuthenticatedCsrfToken,
+  loginUser,
+  getTestUser,
+} = require("../setup/testSetup");
 
 describe("Blog API - CRUD Operations", () => {
+  let agent;
+  let csrfToken;
+
+  beforeEach(async () => {
+    agent = request.agent(app);
+    await loginUser(agent); // Log in the test user
+    csrfToken = await getAuthenticatedCsrfToken(agent, "/create");
+  });
+
   test("POST /create should create a new blog post", async () => {
-    const { csrfToken, cookie } = await getCsrfToken();
+    const response = await agent.post("/create").type("form").send({
+      title: "New Post",
+      content: "This is a new blog post.",
+      _csrf: csrfToken,
+    });
 
-    const response = await request(app)
-      .post("/create")
-      .type("form")
-      .set("Cookie", cookie)
-      .send({
-        title: "New Post",
-        content: "This is a new blog post.",
-        author: "New Author",
-        _csrf: csrfToken,
-      });
-
-    expect(response.status).toBe(302);
+    expect(response.status).toBe(302); // Expect redirect on success
 
     const post = await BlogPost.findOne({ where: { title: "New Post" } });
     expect(post).not.toBeNull();
     expect(post.content).toBe("This is a new blog post.");
-    expect(post.author).toBe("New Author");
+    // The author should be set automatically to the logged-in test user’s username.
+    expect(post.author).toBe(getTestUser().username);
   });
 
   test("POST /edit/:id should update a blog post", async () => {
-    const { csrfToken, cookie } = await getCsrfToken();
+    // Create a blog post with the logged-in test user's username as the author.
     const post = await BlogPost.create({
       title: "Old Title",
       content: "Old content",
-      author: "Author4",
+      author: getTestUser().username,
     });
 
-    const response = await request(app)
-      .post(`/edit/${post.id}`)
-      .type("form")
-      .set("Cookie", cookie)
-      .send({
-        title: "Updated Title",
-        content: "Updated content",
-        _csrf: csrfToken,
-      });
+    // Fetch CSRF token from the edit page
+    const editCsrfToken = await getAuthenticatedCsrfToken(
+      agent,
+      `/edit/${post.id}`,
+    );
 
-    expect(response.status).toBe(302);
+    const response = await agent.post(`/edit/${post.id}`).type("form").send({
+      title: "Updated Title",
+      content: "Updated content",
+      _csrf: editCsrfToken,
+    });
+
+    expect(response.status).toBe(302); // Expect redirect on success
 
     const updatedPost = await BlogPost.findByPk(post.id);
     expect(updatedPost.title).toBe("Updated Title");
     expect(updatedPost.content).toBe("Updated content");
+    // The author remains unchanged.
+    expect(updatedPost.author).toBe(getTestUser().username);
   });
 
   test("POST /delete/:id should delete an existing blog post and redirect", async () => {
-    const { csrfToken, cookie } = await getCsrfToken();
     const post = await BlogPost.create({
       title: "Deletable Post",
       content: "This will be deleted",
-      author: "Author Name",
+      author: getTestUser().username,
     });
 
-    const response = await request(app)
-      .post(`/delete/${post.id}`)
-      .type("form")
-      .set("Cookie", cookie)
-      .send({
-        _csrf: csrfToken,
-      });
+    // Fetch CSRF token from the edit page (which renders the delete form as well)
+    const deleteCsrfToken = await getAuthenticatedCsrfToken(
+      agent,
+      `/edit/${post.id}`,
+    );
 
-    expect(response.status).toBe(302);
+    const response = await agent.post(`/delete/${post.id}`).type("form").send({
+      _csrf: deleteCsrfToken,
+    });
+
+    expect(response.status).toBe(302); // Expect redirect on success
 
     const deletedPost = await BlogPost.findByPk(post.id);
     expect(deletedPost).toBeNull();
   });
 
   test("POST /edit/:id should not update if title or content is missing", async () => {
-    const { csrfToken, cookie } = await getCsrfToken();
     const post = await BlogPost.create({
       title: "Old Title",
       content: "Old content",
-      author: "Author4",
+      author: getTestUser().username,
     });
 
-    const response = await request(app)
-      .post(`/edit/${post.id}`)
-      .type("form")
-      .set("Cookie", cookie)
-      .send({
-        title: "Updated Title",
-        content: "", // Missing content
-        _csrf: csrfToken,
-      });
+    // Fetch CSRF token for the edit route
+    const editCsrfToken = await getAuthenticatedCsrfToken(
+      agent,
+      `/edit/${post.id}`,
+    );
+
+    const response = await agent.post(`/edit/${post.id}`).type("form").send({
+      title: "Updated Title",
+      content: "", // Missing content
+      _csrf: editCsrfToken,
+    });
 
     expect(response.status).toBe(400);
 
     const unchangedPost = await BlogPost.findByPk(post.id);
     expect(unchangedPost.title).toBe("Old Title");
     expect(unchangedPost.content).toBe("Old content");
+    expect(unchangedPost.author).toBe(getTestUser().username);
   });
 });

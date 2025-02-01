@@ -1,28 +1,26 @@
-const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
+const User = require("./user");
+const BlogPost = require("./blogPost");
 
-// Define BlogPost model
-const BlogPost = sequelize.define(
-  "BlogPost",
-  {
-    title: {
-      type: DataTypes.STRING(100),
-      allowNull: false,
-    },
-    content: {
-      type: DataTypes.TEXT,
-      allowNull: false,
-    },
-    author: {
-      type: DataTypes.STRING(100),
-      allowNull: false,
-    },
-  },
-  {
-    timestamps: true,
-    createdAt: "created_at",
-    updatedAt: false,
-  },
-);
+// Sync models with the database
+const initialiseModels = async () => {
+  try {
+    // Drop and re-create tables only in development or test environments
+    const resetDB = process.env.RESET_DB === "true";
+    await sequelize.sync({ force: resetDB });
 
-module.exports = { sequelize, BlogPost };
+    if (resetDB) {
+      console.log("Database reset and re-synchronised successfully.");
+    } else {
+      console.log("Database synchronised successfully.");
+    }
+  } catch (error) {
+    console.error("Error syncing the database:", error);
+  }
+};
+module.exports = {
+  sequelize,
+  User,
+  BlogPost,
+  initialiseModels,
+};

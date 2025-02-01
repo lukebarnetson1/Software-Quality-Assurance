@@ -1,79 +1,97 @@
 const express = require("express");
 const router = express.Router();
-const { BlogPost } = require("../models");
+const { BlogPost, User } = require("../models");
 const {
-  validateCreatePost,
-  validateEditPost,
+  validateBlogPost,
   handleValidationErrors,
 } = require("../middlewares/validation");
+const { isAuthenticated } = require("../middlewares/auth");
 
-// Get all blog posts and render the index page
-router.get("/", async (req, res) => {
+// Get all blog posts and render the index page (public route)
+router.get("/", isAuthenticated, async (req, res) => {
   const posts = await BlogPost.findAll();
-  res.render("index", { title: "Blog Posts", posts });
+  res.render("blog/index", { title: "Blog Posts", posts });
 });
 
-// Render the create post form
-router.get("/create", (req, res) => {
-  res.render("create", { title: "Create Post" });
+// Render the create post form (authenticated users only)
+router.get("/create", isAuthenticated, (req, res) => {
+  res.render("blog/create", { title: "Create Post" });
 });
 
-// Create a new blog post
+// Create a new blog post (authenticated users only)
 router.post(
   "/create",
-  validateCreatePost,
+  isAuthenticated,
+  validateBlogPost,
   handleValidationErrors,
   async (req, res) => {
-    const { title, content, author } = req.body;
+    const { title, content } = req.body;
 
     try {
-      await BlogPost.create({ title, content, author });
+      // Find the currently logged-in user
+      const user = await User.findByPk(req.session.userId);
+      // If for any reason the user can’t be found, default to "[Deleted-User]"
+      const authorName = user ? user.username : "[Deleted-User]";
+
+      await BlogPost.create({ title, content, author: authorName });
       res.redirect("/");
-    } catch {
+    } catch (err) {
+      console.error(err);
       res.status(500).send("Internal Server Error");
     }
   },
 );
 
-// Render a single blog post
+// Render a single blog post (public route)
 router.get("/post/:id", async (req, res) => {
   const post = await BlogPost.findByPk(req.params.id);
   if (post) {
-    res.render("post", { title: post.title, post });
+    res.render("blog/post", { title: post.title, post });
   } else {
     res.status(404).send("Post not found");
   }
 });
 
-// Render the edit form for a specific blog post
-router.get("/edit/:id", async (req, res) => {
+// Render the edit form for a specific blog post (authenticated users only)
+router.get("/edit/:id", isAuthenticated, async (req, res) => {
   const post = await BlogPost.findByPk(req.params.id);
-  if (post) {
-    res.render("edit", { title: "Edit Post", post });
-  } else {
-    res.status(404).send("Post not found");
+  if (!post) {
+    req.flash("error", "Post not found.");
+    return res.redirect("/");
   }
+
+  const user = await User.findByPk(req.session.userId);
+  if (!user || user.username !== post.author) {
+    req.flash("error", "You can only edit your own posts.");
+    return res.redirect("/");
+  }
+
+  res.render("blog/edit", { title: "Edit Post", post });
 });
 
-// Update a specific blog post
+// Update a specific blog post (authenticated users only)
 router.post(
   "/edit/:id",
-  validateEditPost,
+  isAuthenticated,
+  validateBlogPost,
   handleValidationErrors,
   async (req, res) => {
     const post = await BlogPost.findByPk(req.params.id);
-    if (post) {
-      const { title, content } = req.body;
-      await post.update({ title, content });
-      res.redirect(`/post/${post.id}`);
-    } else {
-      res.status(404).send("Post not found");
+    if (!post) {
+      req.flash("error", "Post not found.");
+      return res.redirect("/");
     }
+
+    const { title, content } = req.body;
+    await post.update({ title, content });
+
+    req.flash("success", "Post updated successfully!");
+    res.redirect(`/post/${post.id}`);
   },
 );
 
-// Delete a specific blog post
-router.post("/delete/:id", async (req, res) => {
+// Delete a specific blog post (authenticated users only)
+router.post("/delete/:id", isAuthenticated, async (req, res) => {
   const post = await BlogPost.findByPk(req.params.id);
   if (post) {
     await post.destroy();
@@ -83,13 +101,13 @@ router.post("/delete/:id", async (req, res) => {
   }
 });
 
-// Get blog post statistics
-router.get("/stats", async (req, res) => {
+// Get blog post statistics (authenticated users only)
+router.get("/stats", isAuthenticated, async (req, res) => {
   const posts = await BlogPost.findAll();
   const lengths = posts.map((post) => post.content.length);
 
   if (lengths.length === 0) {
-    return res.render("stats", {
+    return res.render("blog/stats", {
       title: "Post Statistics",
       average_length: 0,
       median_length: 0,
@@ -109,7 +127,7 @@ router.get("/stats", async (req, res) => {
   const total_length = lengths.reduce((a, b) => a + b, 0);
   const average_length = total_length / lengths.length;
 
-  res.render("stats", {
+  res.render("blog/stats", {
     title: "Post Statistics",
     average_length: Math.round(average_length),
     median_length: Math.round(median),

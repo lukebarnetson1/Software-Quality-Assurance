@@ -1,5 +1,6 @@
-const { body, param, validationResult } = require("express-validator");
+const { body, validationResult } = require("express-validator");
 const sanitiseHtml = require("sanitize-html");
+const zxcvbn = require("zxcvbn");
 
 // Reusable sanitisation function
 const sanitiseInput = (input) => {
@@ -11,8 +12,16 @@ const sanitiseInput = (input) => {
   });
 };
 
-// Middleware to validate and sanitise input
-const validateCreatePost = [
+const validatePasswordStrength = (password) => {
+  const result = zxcvbn(password);
+  if (result.score < 2) {
+    throw new Error("Password is too weak. Please choose a stronger password.");
+  }
+  return true;
+};
+
+// Validation rules for creating/editing blog posts
+const validateBlogPost = [
   body("title")
     .trim()
     .notEmpty()
@@ -25,31 +34,50 @@ const validateCreatePost = [
     .notEmpty()
     .withMessage("Content is required")
     .customSanitizer((value) => sanitiseInput(value)),
-  body("author")
+];
+
+// Validation rules for sign-up
+const validateSignUp = [
+  body("email")
+    .isEmail()
+    .withMessage("Must be a valid email address")
+    .customSanitizer((value) => sanitiseInput(value)),
+  body("username")
     .trim()
     .notEmpty()
-    .withMessage("Author is required")
-    .isLength({ max: 100 })
-    .withMessage("Author name must be less than 100 characters")
+    .withMessage("Username is required")
+    .isLength({ min: 3, max: 30 })
+    .withMessage("Username must be between 3 and 30 characters.")
+    .matches(/^[a-zA-Z0-9_]+$/)
+    .withMessage("Username can only contain letters, numbers, and underscores.")
+    .customSanitizer((value) => sanitiseInput(value)),
+  body("password").custom(validatePasswordStrength),
+];
+
+// Validation rules for login
+const validateLogin = [
+  body("identifier")
+    .notEmpty()
+    .withMessage("Email or Username is required")
+    .customSanitizer((value) => sanitiseInput(value)),
+  body("password").notEmpty().withMessage("Password is required"),
+];
+
+// Validation rules for updating username
+const validateUpdateUsername = [
+  body("newUsername")
+    .trim()
+    .notEmpty()
+    .withMessage("Username is required")
+    .isLength({ min: 3, max: 30 })
+    .withMessage("Username must be between 3 and 30 characters.")
+    .matches(/^[a-zA-Z0-9_]+$/)
+    .withMessage("Username can only contain letters, numbers, and underscores.")
     .customSanitizer((value) => sanitiseInput(value)),
 ];
 
-const validateEditPost = [
-  param("id").isInt().withMessage("Post ID must be an integer"),
-  body("title")
-    .optional()
-    .trim()
-    .notEmpty()
-    .withMessage("Title must not be empty")
-    .isLength({ max: 100 })
-    .withMessage("Title must be less than 100 characters")
-    .customSanitizer((value) => sanitiseInput(value)),
-  body("content")
-    .optional()
-    .trim()
-    .notEmpty()
-    .withMessage("Content must not be empty")
-    .customSanitizer((value) => sanitiseInput(value)),
+const validateResetPassword = [
+  body("password").custom(validatePasswordStrength), // Use zxcvbn for password validation
 ];
 
 // Middleware to handle validation errors
@@ -62,7 +90,10 @@ const handleValidationErrors = (req, res, next) => {
 };
 
 module.exports = {
-  validateCreatePost,
-  validateEditPost,
+  validateBlogPost,
+  validateSignUp,
+  validateLogin,
+  validateUpdateUsername,
+  validateResetPassword,
   handleValidationErrors,
 };

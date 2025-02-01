@@ -1,0 +1,17 @@
+extends ../layouts/layout
+
+block content
+  .container.mt-4
+    h2 Posts
+    if !user
+      p Log in to create a post.
+      a.btn.btn-primary(href="/auth/login") Log In
+    if posts.length
+      ul.list-group
+        each post in posts
+          li.list-group-item
+            a(href=`/post/${post.id}`) #{post.title} by #{post.author} (#{post.created_at.toLocaleDateString()})
+    else
+      p No posts available.
+      if user
+        a.btn.btn-primary(href="/create") Create your first post.
