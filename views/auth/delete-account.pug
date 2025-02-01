@@ -1,8 +1,9 @@
 extends ../layouts/layout
 
 block content
-  h2 Delete Account
-  form(method="POST", action="/auth/delete-account")
-    input(type="hidden", name="_csrf", value=csrfToken)
-    p Are you sure you want to delete your account?
-    button(type="submit", class="danger") Delete Account
+  .container.mt-4
+    h2 Delete Account
+    form(method="POST", action="/auth/delete-account")
+      input(type="hidden", name="_csrf", value=csrfToken)
+      p Are you sure you want to delete your account?
+      button.btn.btn-danger(type="submit") Delete Account

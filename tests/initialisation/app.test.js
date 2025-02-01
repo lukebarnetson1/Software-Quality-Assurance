@@ -20,7 +20,7 @@ describe("App Initialisation", () => {
   test("should serve static files (return 200 if file exists)", async () => {
     const response = await request(app).get("/css/styles.css");
     expect(response.status).toBe(200);
-    // Optionally, verify content type
+    // Verify content type
     expect(response.headers["content-type"]).toMatch(/text\/css/);
   });
 

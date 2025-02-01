@@ -1,10 +1,11 @@
 extends ../layouts/layout
 
 block content
-  h2 Update Email Address
-  form(method="POST", action="/auth/update-email")
-    input(type="hidden", name="_csrf", value=csrfToken)
-    label(for="newEmail") New Email:
-    input(type="email", name="newEmail", required)
-    br
-    button(type="submit") Update Email
+  .container.mt-4
+    h2 Update Username
+    form(method="POST", action="/auth/update-username")
+      input(type="hidden", name="_csrf", value=csrfToken)
+      .mb-3
+        label(for="newUsername") New Username:
+        input.form-control(type="text", name="newUsername", required)
+      button.btn.btn-primary(type="submit") Update Username

@@ -1,10 +1,11 @@
 extends ../layouts/layout
 
 block content
-  h2 Blog Statistics
-  ul
-    li Average Length: #{average_length} characters
-    li Median Length: #{median_length} characters
-    li Maximum Length: #{max_length} characters
-    li Minimum Length: #{min_length} characters
-    li Total Length of All Posts: #{total_length} characters
+  .container.mt-4
+    h2 Blog Statistics
+    ul.list-group
+      li.list-group-item Average Length: #{average_length} characters
+      li.list-group-item Median Length: #{median_length} characters
+      li.list-group-item Maximum Length: #{max_length} characters
+      li.list-group-item Minimum Length: #{min_length} characters
+      li.list-group-item Total Length of All Posts: #{total_length} characters

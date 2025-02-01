@@ -1,19 +1,17 @@
 extends ../layouts/layout
 
 block content
-  h2 Posts
-
-  // Show this message if the user isn't logged in
-  if !user
-    p Log in to create a post.
-    a(href="/auth/login", class="btn btn-primary") Log In
-
-  if posts.length
-    ul
-      each post in posts
-        li
-          a(href=`/post/${post.id}`) #{post.title} by #{post.author} (#{post.created_at.toLocaleDateString()})
-  else
-    p No posts available.
-    if user
-      a(href="/create") Create your first post.
+  .container.mt-4
+    h2 Posts
+    if !user
+      p Log in to create a post.
+      a.btn.btn-primary(href="/auth/login") Log In
+    if posts.length
+      ul.list-group
+        each post in posts
+          li.list-group-item
+            a(href=`/post/${post.id}`) #{post.title} by #{post.author} (#{post.created_at.toLocaleDateString()})
+    else
+      p No posts available.
+      if user
+        a.btn.btn-primary(href="/create") Create your first post.

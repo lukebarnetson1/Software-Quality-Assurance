@@ -1,24 +1,24 @@
 extends ../layouts/layout
 
 block content
-  h2 Log In
-  form(method="POST", action="/auth/login")
-    input(type="hidden", name="_csrf", value=csrfToken)
-    
-    div.mb-3
-      label(for="identifier", class="form-label") Email or Username:
-      input.form-control(type="text", name="identifier", required)
-    div.mb-3
-      label(for="password", class="form-label") Password:
-      input.form-control(type="password", name="password", required)
-    div.mb-3
-      div.form-check
-        input.form-check-input(type="checkbox", name="rememberMe", id="rememberMe")
-        label.form-check-label(for="rememberMe") Remember Me
-    button.btn.btn-primary(type="submit") Log In
+  .container.mt-4
+    h2 Log In
+    form(method="POST", action="/auth/login")
+      input(type="hidden", name="_csrf", value=csrfToken)
+      .mb-3
+        label.form-label(for="identifier") Email or Username:
+        input.form-control(type="text", name="identifier", required)
+      .mb-3
+        label.form-label(for="password") Password:
+        input.form-control(type="password", name="password", required)
+      .mb-3
+        .form-check
+          input.form-check-input(type="checkbox", name="rememberMe", id="rememberMe")
+          label.form-check-label(for="rememberMe") Remember Me
+      button.btn.btn-primary(type="submit") Log In
 
-  p.mt-3
-    a.btn.btn-link(href="/auth/forgot") Forgot Password?
-  p.mt-3
-    | Don't have an account?
-    button.btn.btn-secondary(type="button", onclick="window.location.href='/auth/signup'") Sign Up
+    .mt-3
+      a.btn.btn-link(href="/auth/forgot") Forgot Password?
+    .mt-3
+      p Don't have an account?
+      button.btn.btn-primary(type="button", onclick="window.location.href='/auth/signup'") Sign Up

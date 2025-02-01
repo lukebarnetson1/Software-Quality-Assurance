@@ -3,41 +3,39 @@ html(lang="en")
   head
     meta(charset="UTF-8")
     meta(name="viewport", content="width=device-width, initial-scale=1.0")
-    title= title || "Byte Sized Bits"
+    title #{title || "Byte Sized Bits"}
     link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css")
     link(rel="stylesheet", href="/css/styles.css")
   body
-    header
-      h1 Byte-Sized Bits
-      nav.navbar
-        ul
-          li
-            a(href="/") Home
-          if user
-            li
-              a(href="/create") Create Post
-            li
-              a(href="/auth/account-settings") Account Settings
-            li
-              a(href="/auth/logout") Log Out
-          else
-            li
-              a(href="/auth/login") Log In
-          li
-            a(href="/stats") Stats
+    header.bg-light.py-3.mb-4
+      .container
+        h1 Byte-Sized Bits
+        nav.navbar.navbar-expand-lg.navbar-light
+          .container-fluid
+            ul.navbar-nav.me-auto.mb-2.mb-lg-0
+              li.nav-item
+                a.nav-link(href="/") Home
+              if user
+                li.nav-item
+                  a.nav-link(href="/create") Create Post
+                li.nav-item
+                  a.nav-link(href="/auth/account-settings") Account Settings
+                li.nav-item
+                  a.nav-link(href="/auth/logout") Log Out
+              else
+                li.nav-item
+                  a.nav-link(href="/auth/login") Log In
+              li.nav-item
+                a.nav-link(href="/stats") Stats
+    .container
+      // Flash Alerts
+      if flashSuccess && flashSuccess.length
+        each msg in flashSuccess
+          .alert.alert-success(role="alert")= msg
+      if flashError && flashError.length
+        each msg in flashError
+          .alert.alert-danger(role="alert")= msg
 
-    // Flash Alerts
-    if flashSuccess && flashSuccess.length
-      each msg in flashSuccess
-        .alert.alert-success(role="alert")= msg
-
-    if flashError && flashError.length
-      each msg in flashError
-        .alert.alert-danger(role="alert")= msg
-
-    main
-      block content
-
-    // Bootstrap
+      main
+        block content
     script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js")
-  </body>
