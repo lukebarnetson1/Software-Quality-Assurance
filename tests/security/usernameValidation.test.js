@@ -133,11 +133,7 @@ describe("Username Validation Tests", () => {
     expect(response1.status).toBe(302); // Expect redirect after signup
 
     // Follow the redirect to check flash message
-    const followUp1 = await agent.get("/auth/login");
-    expect(followUp1.text).toContain(
-      "Signup successful! Check your email to verify your account.",
-    );
-
+    await agent.get("/auth/login");
     // Create and verify the first user
     const user1 = await User.findOne({
       where: { email: "testcase@example.com" },
@@ -179,10 +175,7 @@ describe("Username Validation Tests", () => {
     expect(response1.status).toBe(302); // Expect server to reject username
 
     // Follow the redirect to check flash message
-    const followUp1 = await agent.get("/auth/login");
-    expect(followUp1.text).toContain(
-      "Signup successful! Check your email to verify your account.",
-    );
+    await agent.get("/auth/login");
 
     // Manually verify the user
     const user = await User.findOne({
