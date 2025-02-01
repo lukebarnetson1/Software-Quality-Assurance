@@ -116,9 +116,6 @@ describe("Username Validation Tests", () => {
     });
     expect(user).not.toBeNull();
     expect(user.isVerified).toBe(false);
-
-    // Optionally, verify email sending
-    // You can also mark the user as verified here if needed for further tests
   });
 
   test("Should treat usernames as case-insensitive", async () => {

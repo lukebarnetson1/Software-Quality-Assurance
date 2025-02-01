@@ -99,19 +99,23 @@ async function getAuthenticatedCsrfToken(agent, route = "/create") {
  * @param {string} route - The route to fetch the CSRF token from (default: "/auth/login").
  * @returns {object} - { csrfToken, cookie }
  */
-async function getCsrfToken(route = "/auth/login") {
-  const response = await request(app).get(route);
+async function getCsrfToken(route = "/auth/login", agentInstance) {
+  let response;
+  if (agentInstance) {
+    response = await agentInstance.get(route);
+  } else {
+    response = await request(app).get(route);
+  }
   expect([200, 302]).toContain(response.status);
-
   const csrfTokenMatch = response.text.match(/name="_csrf" value="([^"]+)"/);
   const csrfToken = csrfTokenMatch ? csrfTokenMatch[1] : null;
-
   if (!csrfToken) {
     throw new Error(`Failed to extract CSRF token from route: ${route}`);
   }
-
-  // Join cookies to format correctly for headers
-  const cookie = response.headers["set-cookie"].join("; ");
+  // If the response includes a set-cookie header, join them (otherwise return empty string)
+  const rawCookies = response.headers["set-cookie"] || [];
+  const cookies = rawCookies.filter((c) => !/httponly/i.test(c));
+  const cookie = cookies.join("; ");
   return { csrfToken, cookie };
 }
 

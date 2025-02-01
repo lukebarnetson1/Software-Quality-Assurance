@@ -46,7 +46,7 @@ describe("Authentication System", () => {
     expect(response.status).toBe(302); // Expect redirect on success
     expect(response.headers.location).toBe("/"); // Redirect to home
 
-    // Optionally, follow the redirect and check flash messages
+    // Follow the redirect and check flash messages
     const followUp = await agent.get(response.headers.location);
     expect(followUp.text).toContain("Welcome back, testuser!");
   });
@@ -75,7 +75,7 @@ describe("Authentication System", () => {
     expect(response.status).toBe(302); // Expect redirect on success
     expect(response.headers.location).toBe("/"); // Redirect to home
 
-    // Optionally, follow the redirect and check flash messages
+    // Follow the redirect and check flash messages
     const followUp = await agent.get(response.headers.location);
     expect(followUp.text).toContain("Welcome back, testuser2!");
   });
