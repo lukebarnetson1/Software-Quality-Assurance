@@ -1,0 +1,8 @@
+extends ../layouts/layout
+
+block content
+  h2 Delete Account
+  form(method="POST", action="/auth/delete-account")
+    input(type="hidden", name="_csrf", value=csrfToken)
+    p Are you sure you want to delete your account?
+    button(type="submit", class="danger") Delete Account

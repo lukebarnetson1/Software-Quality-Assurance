@@ -326,26 +326,76 @@ router.post("/update-email", async (req, res) => {
       req.flash("error", "User not found.");
       return res.redirect("/");
     }
-    // Check if already in use
+    // Check if new email is already in use
     const existingUser = await User.findOne({ where: { email: newEmail } });
     if (existingUser) {
       req.flash("error", "Email already in use by another account.");
       return res.redirect("/");
     }
-    user.email = newEmail;
-    user.isVerified = false;
-    await user.save();
-    await sendVerificationEmail(user, req);
+    // Generate a token that includes the user's id and the new email
+    const token = generateToken({ userId: user.id, newEmail }, "1h");
+    const host = process.env.APP_HOST || req.get("host");
+    const confirmURL = `${req.protocol}://${host}/auth/confirm-update-email?token=${token}`;
+
+    await transporter.sendMail({
+      from: `"Byte-Sized Bits" <noreply@yourapp.com>`,
+      to: user.email, // send to the current email address
+      subject: "Confirm Email Change",
+      html: `
+        <p>Hello ${user.username},</p>
+        <p>You requested to change your email address to <strong>${newEmail}</strong>. Please click the link below to confirm this change:</p>
+        <a href="${confirmURL}">${confirmURL}</a>
+      `,
+    });
 
     req.flash(
       "success",
-      "Email updated. Check inbox to verify your new email.",
+      "A confirmation email has been sent to your current email address.",
     );
-    res.redirect("/");
+    res.redirect("/auth/account-settings");
   } catch (err) {
     console.error(err);
     req.flash("error", "Internal server error.");
     res.redirect("/");
+  }
+});
+
+router.get("/confirm-update-email", async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      req.flash("error", "Missing token.");
+      return res.redirect("/auth/account-settings");
+    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findByPk(decoded.userId);
+    if (!user) {
+      req.flash("error", "User not found.");
+      return res.redirect("/auth/account-settings");
+    }
+    // Check again if the new email is not already in use
+    const existingUser = await User.findOne({
+      where: { email: decoded.newEmail },
+    });
+    if (existingUser) {
+      req.flash("error", "Email already in use by another account.");
+      return res.redirect("/auth/account-settings");
+    }
+    user.email = decoded.newEmail;
+    user.isVerified = false; // require re‑verification for the new email
+    await user.save();
+    // Send a verification email so that the new email is confirmed
+    await sendVerificationEmail(user, req);
+
+    req.flash(
+      "success",
+      "Email updated successfully. Please verify your new email address.",
+    );
+    res.redirect("/auth/account-settings");
+  } catch (err) {
+    console.error(err);
+    req.flash("error", "Token is invalid or has expired.");
+    res.redirect("/auth/account-settings");
   }
 });
 
@@ -379,8 +429,7 @@ router.post(
         req.flash("error", "User not found.");
         return res.redirect("/");
       }
-
-      // Check if username already used
+      // Check if the new username is already taken
       const existingUser = await User.findOne({
         where: Sequelize.where(
           Sequelize.fn("lower", Sequelize.col("username")),
@@ -388,15 +437,30 @@ router.post(
         ),
       });
       if (existingUser) {
-        req.flash("error", "Username already in use");
+        req.flash("error", "Username already in use.");
         return res.redirect("/auth/update-username");
       }
+      // Generate a token for the username change
+      const token = generateToken({ userId: user.id, newUsername }, "1h");
+      const host = process.env.APP_HOST || req.get("host");
+      const confirmURL = `${req.protocol}://${host}/auth/confirm-update-username?token=${token}`;
 
-      user.username = newUsername;
-      await user.save();
+      await transporter.sendMail({
+        from: `"Byte-Sized Bits" <noreply@yourapp.com>`,
+        to: user.email,
+        subject: "Confirm Username Change",
+        html: `
+        <p>Hello ${user.username},</p>
+        <p>You requested to change your username to <strong>${newUsername}</strong>. Please click the link below to confirm this change:</p>
+        <a href="${confirmURL}">${confirmURL}</a>
+      `,
+      });
 
-      req.flash("success", "Username updated successfully.");
-      res.redirect("/auth/update-username");
+      req.flash(
+        "success",
+        "A confirmation email has been sent to your current email address.",
+      );
+      res.redirect("/auth/account-settings");
     } catch (err) {
       console.error(err);
       req.flash("error", "Internal server error.");
@@ -404,6 +468,53 @@ router.post(
     }
   },
 );
+
+router.get("/confirm-update-username", async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      req.flash("error", "Missing token.");
+      return res.redirect("/auth/account-settings");
+    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findByPk(decoded.userId);
+    if (!user) {
+      req.flash("error", "User not found.");
+      return res.redirect("/auth/account-settings");
+    }
+    // Store the current (old) username before updating
+    const oldUsername = user.username;
+
+    // Double-check that the new username isn’t taken
+    const existingUser = await User.findOne({
+      where: Sequelize.where(
+        Sequelize.fn("lower", Sequelize.col("username")),
+        Sequelize.fn("lower", decoded.newUsername),
+      ),
+    });
+    if (existingUser) {
+      req.flash("error", "Username already in use.");
+      return res.redirect("/auth/account-settings");
+    }
+
+    // Update the user's username
+    user.username = decoded.newUsername;
+    await user.save();
+
+    // Update all blog posts that have the old username as the author
+    await BlogPost.update(
+      { author: decoded.newUsername },
+      { where: { author: oldUsername } },
+    );
+
+    req.flash("success", "Username updated successfully.");
+    res.redirect("/auth/account-settings");
+  } catch (err) {
+    console.error(err);
+    req.flash("error", "Token is invalid or has expired.");
+    res.redirect("/auth/account-settings");
+  }
+});
 
 // DELETE ACCOUNT
 router.get("/delete-account", isAuthenticated, (req, res) => {
@@ -421,12 +532,55 @@ router.post("/delete-account", async (req, res) => {
       req.flash("error", "User not found.");
       return res.redirect("/");
     }
-    // Change author of all posts belonging to that user to "[Deleted-User]"
+    // Generate a token for account deletion
+    const token = generateToken({ userId: user.id }, "1h");
+    const host = process.env.APP_HOST || req.get("host");
+    const confirmURL = `${req.protocol}://${host}/auth/confirm-delete-account?token=${token}`;
+
+    await transporter.sendMail({
+      from: `"Byte-Sized Bits" <noreply@yourapp.com>`,
+      to: user.email,
+      subject: "Confirm Account Deletion",
+      html: `
+        <p>Hello ${user.username},</p>
+        <p>You requested to delete your account. This action is irreversible.</p>
+        <p>Please click the link below to confirm account deletion:</p>
+        <a href="${confirmURL}">${confirmURL}</a>
+      `,
+    });
+
+    req.flash(
+      "success",
+      "A confirmation email has been sent to your email address.",
+    );
+    res.redirect("/auth/account-settings");
+  } catch (err) {
+    console.error(err);
+    req.flash("error", "Internal server error.");
+    res.redirect("/");
+  }
+});
+
+router.get("/confirm-delete-account", async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      req.flash("error", "Missing token.");
+      return res.redirect("/auth/account-settings");
+    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findByPk(decoded.userId);
+    if (!user) {
+      req.flash("error", "User not found.");
+      return res.redirect("/");
+    }
+    // Update any blog posts by this user
     await BlogPost.update(
       { author: "[Deleted-User]" },
       { where: { author: user.username } },
     );
     await user.destroy();
+
     req.flash("success", "Account deleted successfully.");
     req.session.destroy((err) => {
       if (err) console.error(err);
@@ -435,8 +589,82 @@ router.post("/delete-account", async (req, res) => {
     });
   } catch (err) {
     console.error(err);
+    req.flash("error", "Token is invalid or has expired.");
+    res.redirect("/auth/account-settings");
+  }
+});
+
+// ACCOUNT SETTINGS
+router.get("/account-settings", isAuthenticated, async (req, res) => {
+  const user = await User.findByPk(req.session.userId);
+  res.render("auth/account-settings", { title: "Account Settings", user });
+});
+
+// GET route to render a form for resetting the password (for logged-in users)
+router.get("/update-password", isAuthenticated, (req, res) => {
+  res.render("auth/update-password", { title: "Reset Password" });
+});
+
+// POST route to process password reset – instead of immediately updating the password,
+// send a confirmation email with a token (similar to update-email).
+router.post("/update-password", isAuthenticated, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    const user = await User.findByPk(req.session.userId);
+    if (!user) {
+      req.flash("error", "User not found.");
+      return res.redirect("/auth/account-settings");
+    }
+    // Generate a token that encodes the new password (use a short expiry)
+    const token = generateToken({ userId: user.id, newPassword }, "1h");
+    const host = process.env.APP_HOST || req.get("host");
+    const confirmURL = `${req.protocol}://${host}/auth/confirm-update-password?token=${token}`;
+    await transporter.sendMail({
+      from: `"Byte-Sized Bits" <noreply@yourapp.com>`,
+      to: user.email,
+      subject: "Confirm Password Reset",
+      html: `
+        <p>Hi ${user.username},</p>
+        <p>You requested a password reset. Click the link below to confirm this change:</p>
+        <a href="${confirmURL}">${confirmURL}</a>
+      `,
+    });
+    req.flash(
+      "success",
+      "A confirmation email has been sent to your email address.",
+    );
+    res.redirect("/auth/account-settings");
+  } catch (err) {
+    console.error(err);
     req.flash("error", "Internal server error.");
-    res.redirect("/");
+    res.redirect("/auth/update-password");
+  }
+});
+
+// GET route to confirm the password update when the user clicks the confirmation link.
+router.get("/confirm-update-password", async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      req.flash("error", "Missing token.");
+      return res.redirect("/auth/account-settings");
+    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findByPk(decoded.userId);
+    if (!user) {
+      req.flash("error", "User not found.");
+      return res.redirect("/auth/account-settings");
+    }
+    // Hash the new password and update the user record
+    const hashedPassword = await bcrypt.hash(decoded.newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+    req.flash("success", "Password updated successfully.");
+    res.redirect("/auth/account-settings");
+  } catch (err) {
+    console.error(err);
+    req.flash("error", "Token is invalid or has expired.");
+    res.redirect("/auth/account-settings");
   }
 });
 

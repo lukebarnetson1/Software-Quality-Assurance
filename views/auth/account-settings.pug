@@ -1,0 +1,16 @@
+extends ../layouts/layout
+
+block content
+  h2 Account Settings
+  p
+    strong Email:
+    | #{user.email}
+  p
+    strong Username:
+    | #{user.username}
+  hr
+  h3 Actions
+  a.btn.btn-primary.me-2.mb-2(href="/auth/update-email") Change Email Address
+  a.btn.btn-primary.me-2.mb-2(href="/auth/update-username") Change Username
+  a.btn.btn-primary.me-2.mb-2(href="/auth/update-password") Reset Password
+  a.btn.btn-danger.me-2.mb-2(href="/auth/delete-account") Delete Account
