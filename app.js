@@ -19,7 +19,7 @@ const port = process.env.PORT || 3000;
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "pug");
 
-// Serve static files
+// Serve static files from the public directory
 app.use(express.static(path.join(__dirname, "public")));
 
 // Parse URL-encoded and JSON data
@@ -44,7 +44,7 @@ app.use(
   }),
 );
 
-// Store logged-in user's details
+// Middleware to store logged-in user's details in res.locals
 app.use(async (req, res, next) => {
   if (req.session.userId) {
     const user = await User.findByPk(req.session.userId);
@@ -57,17 +57,17 @@ app.use(async (req, res, next) => {
 
 app.use(flash());
 
-// Middleware to pass flash messages to res.locals
+// Middleware to pass flash messages to res.locals for use in views
 app.use((req, res, next) => {
   res.locals.flashSuccess = req.flash("success");
   res.locals.flashError = req.flash("error");
   next();
 });
 
-// // Set up CSRF protection with tokens stored in cookies
+// Set up CSRF protection with tokens stored in cookies
 app.use(csrf({ cookie: true }));
 
-// // Make the CSRF token available in all views via res.locals
+// Make the CSRF token available in all views via res.locals
 app.use((req, res, next) => {
   res.locals.csrfToken = req.csrfToken();
   next();
@@ -75,7 +75,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use("/", blogRoutes);
-app.use("/auth", authRoutes); // Mount authentication routes
+app.use("/auth", authRoutes); // Mount aggregated authentication routes
 
 // Error handler for CSRF errors
 app.use((err, req, res, next) => {
