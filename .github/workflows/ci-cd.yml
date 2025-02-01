@@ -47,16 +47,9 @@ jobs:
       - name: Run ESLint
         run: npx eslint .
 
-      # Step 7: Run tests and generate coverage report
-      - name: Run tests and generate coverage
-        run: npm run coverage
-
-      # Step 8: Upload coverage report
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v3
-        with:
-          name: coverage-report
-          path: coverage/
+      # Step 7: Run tests
+      - name: Run tests
+        run: npm test
 
   deploy-staging:
     runs-on: ubuntu-latest
